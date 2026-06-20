@@ -1,12 +1,24 @@
 {
   "name": "mandarclerkapp",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "expo-router/entry",
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-picker/picker": "^2.11.4",
+    "axios": "^1.17.0",
+    "cors": "^2.8.6",
     "expo": "~56.0.11",
+    "expo-constants": "~56.0.18",
+    "expo-crypto": "~56.0.4",
+    "expo-linking": "~56.0.14",
+    "expo-network": "~56.0.5",
+    "expo-router": "~56.2.10",
+    "expo-sqlite": "~56.0.5",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
-    "react-native": "0.85.3"
+    "react-dom": "19.2.3",
+    "react-native": "0.85.3",
+    "react-native-safe-area-context": "~5.7.0"
   },
   "scripts": {
     "start": "expo start",
