@@ -77,7 +77,7 @@ export default function LedgerHistoryScreen() {
                 isVoided && styles.voidedTextCrossed,
               ]}
             >
-              {item.id} {isVoided ? "[VOIDED]" : ""}
+              {item.receiptNumber} {isVoided ? "[VOIDED]" : ""}
             </Text>
             <Text style={styles.timestampLabel}>{item.createdAt}</Text>
           </View>
@@ -222,7 +222,7 @@ export default function LedgerHistoryScreen() {
         {!isVoided && (
           <TouchableOpacity
             style={styles.voidCardActionButton}
-            onPress={() => handleInitiateVoidFlow(item.id)}
+            onPress={() => handleInitiateVoidFlow(item.dbId)}
           >
             <Text style={styles.voidCardActionButtonText}>
               ⚠️ Void & Invalidate Receipt Log
@@ -261,7 +261,7 @@ export default function LedgerHistoryScreen() {
       ) : (
         <FlatList
           data={transactions}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.dbId}
           renderItem={renderTicketCardItem}
           contentContainerStyle={styles.listScrollPaddingWrapper}
           showsVerticalScrollIndicator={false}
@@ -535,7 +535,6 @@ const styles = StyleSheet.create({
   },
   reasonOptionItem: {
     backgroundColor: "#f8fafc",
-    borderFrankWidth: 1,
     borderColor: "#e2e8f0",
     borderRadius: 8,
     paddingVertical: 14,
