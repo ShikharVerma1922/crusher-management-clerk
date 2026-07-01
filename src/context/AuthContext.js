@@ -2,8 +2,8 @@
 import React, { createContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useSegments } from "expo-router";
-// 🛠️ Import our newly cookie-enabled apiClient node
 import apiClient from "../services/apiClient";
+import { apiServices } from "../services/apiServices";
 
 export const AuthContext = createContext(null);
 
@@ -51,13 +51,8 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log(`Attempting secure gateway dispatch for: ${username}`);
 
-      const response = await apiClient.post("/api/auth/login", {
-        username: username.toLowerCase().trim(),
-        password: password,
-      });
+      const serverData = await apiServices.login(username, password);
 
-      // Extract properties matching your exact backend schema paths perfectly
-      const serverData = response.data?.data;
       const identityProfile = serverData?.user;
       const sessionId = serverData?.shiftId;
 
@@ -95,8 +90,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Clear out backend tokens cleanly if your backend has a /logout endpoint
-      await apiClient.post("/api/auth/logout").catch(() => {});
+      await apiServices.logout;
 
       await AsyncStorage.removeItem("@mandar_clerk_session");
       await AsyncStorage.removeItem("@mandar_active_shift_id");

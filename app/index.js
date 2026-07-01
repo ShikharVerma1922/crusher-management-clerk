@@ -15,6 +15,9 @@ import { useAuth } from "../src/context/AuthContext";
 import { useLedger } from "../src/context/LedgerContext";
 import apiClient from "../src/services/apiClient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import MaterialDropdown from "../src/components/MaterialDropdown";
+import { generateTicketIdentities } from "../src/utils/idGenerator";
+import { apiServices } from "../src/services/apiServices";
 
 export default function WeighbridgeWizardScreen() {
   const { clerk, shiftId } = useAuth();
@@ -29,13 +32,10 @@ export default function WeighbridgeWizardScreen() {
   const [materials, setMaterials] = useState([]);
   const [selectedMaterial, setSelectedMaterial] = useState("");
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
-  const [grossWeight, setGrossWeight] = useState("");
-  const [tareWeight, setTareWeight] = useState("");
-
-  // Live Math Output States
-  const [netWeight, setNetWeight] = useState(0);
-  const [totalBill, setTotalBill] = useState(0);
-  const RATE_PER_TON = 450.0;
+  const [quantity, setQuantity] = useState("");
+  const [site, setSite] = useState("");
+  const [paymentType, setPaymentType] = useState("CASH");
+  const [amount, setAmount] = useState("");
 
   const STORAGE_CACHE_KEY = "@mandar_crusher_materials_cache";
 
@@ -45,15 +45,15 @@ export default function WeighbridgeWizardScreen() {
         console.log(
           "📡 Attempting live synchronization with material registry...",
         );
-        const response = await apiClient.get("/api/materials/clerk");
-        const arr = response.data?.data || response.data || [];
+        // const response = await apiClient.get("/materials/clerk");
+        const { data, status } = await apiServices.materialList();
 
-        if (Array.isArray(arr) && arr.length > 0) {
-          setMaterials(arr);
-          setSelectedMaterial(arr[0].id || arr[0].name);
+        if (Array.isArray(data) && data.length > 0) {
+          setMaterials(data);
+          setSelectedMaterial(data[0].id || data[0].name);
 
           // 🌟 CACHE IMMUTABLY: Save to hardware disk storage for offline boot sequences
-          await AsyncStorage.setItem(STORAGE_CACHE_KEY, JSON.stringify(arr));
+          await AsyncStorage.setItem(STORAGE_CACHE_KEY, JSON.stringify(data));
           console.log(
             "💾 Material matrix successfully cached to local disk storage.",
           );
@@ -107,18 +107,9 @@ export default function WeighbridgeWizardScreen() {
     loadMaterials();
   }, []);
 
-  // Compute metrics automatically
-  useEffect(() => {
-    const gross = Number(grossWeight) || 0;
-    const tare = Number(tareWeight) || 0;
-    const net = Math.max(0, gross - tare);
-    setNetWeight(net);
-    setTotalBill(Math.round((net / 1000) * RATE_PER_TON * 100) / 100);
-  }, [grossWeight, tareWeight]);
-
   const handleKeypadPress = (val) => {
-    const targetState = currentStep === 2 ? grossWeight : tareWeight;
-    const setter = currentStep === 2 ? setGrossWeight : setTareWeight;
+    const targetState = currentStep === 1 ? quantity : amount;
+    const setter = currentStep === 1 ? setQuantity : setAmount;
 
     if (val === "CLEAR") {
       setter("");
@@ -131,72 +122,66 @@ export default function WeighbridgeWizardScreen() {
 
   const handleNext = () => {
     if (currentStep === 0) {
+      if (!customerName.trim())
+        return Alert.alert("Required Field", "Please enter the Customer Name.");
       if (!vehicleNumber.trim())
         return Alert.alert(
           "Required Field",
           "Please enter the Vehicle Number.",
         );
-      if (!customerName.trim())
-        return Alert.alert("Required Field", "Please enter the Customer Name.");
+
       Keyboard.dismiss();
     }
-    if (currentStep === 1 && !selectedMaterial) {
-      return Alert.alert(
-        "Required Field",
-        "Please select a material type to continue.",
-      );
-    }
-    if (currentStep === 2 && !grossWeight)
-      return Alert.alert("Required Field", "Please enter Gross Weight.");
-    if (currentStep === 3) {
-      if (!tareWeight)
-        return Alert.alert("Required Field", "Please enter Tare Weight.");
-      if (Number(tareWeight) >= Number(grossWeight)) {
+    if (currentStep === 1) {
+      if (!selectedMaterial)
         return Alert.alert(
-          "Metrics Conflict",
-          "Tare weight cannot exceed or equal Gross weight.",
+          "Required Field",
+          "Please select a material type to continue.",
         );
-      }
+      if (Number(quantity) <= 0)
+        return Alert.alert("Required Field", "Please enter the quantity.");
     }
+    if (currentStep === 2 && Number(amount) <= 0)
+      return Alert.alert("Required Field", "Please enter total amount.");
+
     setCurrentStep((prev) => prev + 1);
   };
 
   const handleBack = () => setCurrentStep((prev) => Math.max(0, prev - 1));
 
   const handleFinalCommit = async () => {
-    const uniqueReceiptNo = `MC-${Date.now().toString().slice(-6)}`;
     const matObj = materials.find(
       (m) => m.id === selectedMaterial || m.name === selectedMaterial,
     );
 
+    const { id, receiptNumber } = await generateTicketIdentities();
+
     const finalTicketRecord = {
-      receiptNumber: uniqueReceiptNo,
       shiftId: shiftId,
       clerkId: clerk?.id,
       vehicleNumber: vehicleNumber.trim().toUpperCase(),
       customerName: customerName.trim(),
       materialName: matObj?.name || selectedMaterial,
       materialId: selectedMaterial,
-      grossWeight: Number(grossWeight),
-      tareWeight: Number(tareWeight),
-      netWeight: netWeight,
-      totalAmount: totalBill,
-      createdAt: new Date().toLocaleString("en-IN", {
-        timeZone: "Asia/Kolkata",
-      }),
+      quantity: Number(quantity),
+      totalAmount: Number(amount),
+      site,
+      id,
+      receiptNumber: String(receiptNumber),
+      paymentType,
+      createdAt: new Date().toISOString(),
       synced: false,
     };
 
     try {
       await appendNewTicket(finalTicketRecord);
-      Alert.alert(
-        "Success ✅",
-        `Ticket ${uniqueReceiptNo} saved successfully!`,
-      );
+      Alert.alert("Success ✅", `Ticket ${receiptNumber} saved successfully!`);
       setVehicleNumber("");
       setCustomerName("");
-      setGrossWeight("");
-      setTareWeight("");
+      setAmount("");
+      setQuantity("");
+      setSite("");
+      setPaymentType("CASH");
       setCurrentStep(0);
     } catch (e) {
       Alert.alert("Error ❌", "Could not write transaction log.");
@@ -233,12 +218,12 @@ export default function WeighbridgeWizardScreen() {
     <View style={styles.container}>
       {/* Step Indicator Top Bar */}
       <View style={styles.progressContainer}>
-        <Text style={styles.progressText}>STEP {currentStep + 1} OF 5</Text>
+        <Text style={styles.progressText}>STEP {currentStep + 1} OF 4</Text>
         <View style={styles.progressBarBg}>
           <View
             style={[
               styles.progressBarFill,
-              { width: `${((currentStep + 1) / 5) * 100}%` },
+              { width: `${((currentStep + 1) / 4) * 100}%` },
             ]}
           />
         </View>
@@ -251,6 +236,15 @@ export default function WeighbridgeWizardScreen() {
           <View style={styles.stepWrapper}>
             <Text style={styles.stepTitle}>Freight Identity Profile</Text>
 
+            <Text style={styles.fieldLabel}>Customer Name</Text>
+            <TextInput
+              style={styles.formInput}
+              placeholder="e.g. Mandar Logistics"
+              placeholderTextColor="#94a3b8"
+              value={customerName}
+              onChangeText={setCustomerName}
+            />
+
             <Text style={styles.fieldLabel}>Vehicle Number</Text>
             <TextInput
               style={styles.formInput}
@@ -261,98 +255,109 @@ export default function WeighbridgeWizardScreen() {
               value={vehicleNumber}
               onChangeText={setVehicleNumber}
             />
+          </View>
+        )}
 
-            <Text style={styles.fieldLabel}>Customer / Account Name</Text>
+        {/* STEP 1: Site, Material and Qty */}
+        {currentStep === 1 && (
+          <View>
+            {/* Site */}
+            <Text style={styles.fieldLabel}>Site</Text>
             <TextInput
               style={styles.formInput}
-              placeholder="e.g. Mandar Logistics"
+              placeholder=""
               placeholderTextColor="#94a3b8"
-              value={customerName}
-              onChangeText={setCustomerName}
+              autoCorrect={false}
+              value={site}
+              onChangeText={setSite}
             />
+            {/* Material */}
+            <MaterialDropdown
+              materials={materials}
+              selectedMaterial={selectedMaterial}
+              setSelectedMaterial={setSelectedMaterial}
+              isMaterialsLoading={isMaterialsLoading}
+            />
+            {/* Quantity */}
+
+            <Text style={styles.stepTitle}>Quantity</Text>
+            <Text style={styles.giantValueDisplay}>{quantity || "0"}</Text>
+            {renderCustomKeypad()}
           </View>
         )}
 
-        {/* STEP 1: UPGRADED Material Selection Grid */}
-        {currentStep === 1 && (
-          <View style={[styles.stepWrapper, { flex: 1 }]}>
-            <Text style={styles.stepTitle}>Select Material Type</Text>
-            {isMaterialsLoading ? (
-              <ActivityIndicator
-                size="large"
-                color="#0f172a"
-                style={{ marginTop: 40 }}
-              />
-            ) : (
-              <ScrollView
-                contentContainerStyle={styles.gridContainer}
-                showsVerticalScrollIndicator={false}
-              >
-                {materials.map((m) => {
-                  const isSelected =
-                    selectedMaterial === m.id || selectedMaterial === m.name;
-                  return (
-                    <TouchableOpacity
-                      key={m.id || m.name}
-                      style={[
-                        styles.gridCard,
-                        isSelected && styles.gridCardSelected,
-                      ]}
-                      onPress={() => setSelectedMaterial(m.id || m.name)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.gridCardIcon}>{m.icon || "📦"}</Text>
-                      <Text
-                        style={[
-                          styles.gridCardLabel,
-                          isSelected && styles.gridCardLabelSelected,
-                        ]}
-                      >
-                        {m.name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
-          </View>
-        )}
-
-        {/* STEP 2: Gross Weight */}
+        {/* STEP 2: Payment and Amount */}
         {currentStep === 2 && (
           <View style={styles.stepWrapper}>
-            <Text style={styles.stepTitle}>Gross Weight (Loaded KG)</Text>
-            <Text style={styles.giantValueDisplay}>{grossWeight || "0"}</Text>
+            {/* Payment type */}
+            <View style={styles.segmentToggleTrack}>
+              {/* 💵 CASH OPTION SELECTION SEGMENT */}
+              <TouchableOpacity
+                style={[
+                  styles.toggleSegmentButton,
+                  paymentType === "CASH" && styles.toggleSegmentActiveCash,
+                ]}
+                onPress={() => setPaymentType("CASH")}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.toggleSegmentLabel,
+                    paymentType === "CASH" && styles.toggleLabelActiveLight,
+                  ]}
+                >
+                  CASH
+                </Text>
+              </TouchableOpacity>
+
+              {/* 💳 CREDIT OPTION SELECTION SEGMENT */}
+              <TouchableOpacity
+                style={[
+                  styles.toggleSegmentButton,
+                  paymentType === "CREDIT" && styles.toggleSegmentActiveCredit,
+                ]}
+                onPress={() => setPaymentType("CREDIT")}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.toggleSegmentLabel,
+                    paymentType === "CREDIT" && styles.toggleLabelActiveLight,
+                  ]}
+                >
+                  CREDIT
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {/* Amount */}
+            <Text style={styles.stepTitle}>Total Amount</Text>
+            <Text style={styles.giantValueDisplay}>{amount || "0"}</Text>
             {renderCustomKeypad()}
           </View>
         )}
 
-        {/* STEP 3: Tare Weight */}
+        {/* STEP 3: Ticket Summary Overview */}
         {currentStep === 3 && (
-          <View style={styles.stepWrapper}>
-            <Text style={styles.stepTitle}>
-              Permanent Tare Weight (Empty KG)
-            </Text>
-            <Text style={styles.giantValueDisplay}>{tareWeight || "0"}</Text>
-            {renderCustomKeypad()}
-          </View>
-        )}
-
-        {/* STEP 4: Ticket Summary Overview */}
-        {currentStep === 4 && (
           <View style={styles.stepWrapper}>
             <Text style={styles.stepTitle}>Review Ticket Summary</Text>
             <View style={styles.summaryBox}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Customer:</Text>
+                <Text style={styles.summaryVal}>{customerName}</Text>
+              </View>
+
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Vehicle:</Text>
                 <Text style={styles.summaryVal}>
                   {vehicleNumber.toUpperCase()}
                 </Text>
               </View>
+
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Customer:</Text>
-                <Text style={styles.summaryVal}>{customerName}</Text>
+                <Text style={styles.summaryLabel}>Site:</Text>
+                <Text style={styles.summaryVal}>{site}</Text>
               </View>
+
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Material:</Text>
                 <Text style={styles.summaryVal}>
@@ -362,16 +367,17 @@ export default function WeighbridgeWizardScreen() {
                   )?.name || selectedMaterial}
                 </Text>
               </View>
+
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Net Cargo:</Text>
+                <Text style={styles.summaryLabel}>Quantity:</Text>
                 <Text style={[styles.summaryVal, { color: "#0284c7" }]}>
-                  {netWeight.toLocaleString("en-IN")} KG
+                  {Number(quantity || 0).toLocaleString("en-IN")}
                 </Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Total Bill:</Text>
+                <Text style={styles.summaryLabel}>Total Amount:</Text>
                 <Text style={[styles.summaryVal, { color: "#16a34a" }]}>
-                  ₹{totalBill.toLocaleString("en-IN")}
+                  ₹{Number(amount || 0).toLocaleString("en-IN")}
                 </Text>
               </View>
             </View>
@@ -388,7 +394,7 @@ export default function WeighbridgeWizardScreen() {
             <View />
           )}
 
-          {currentStep < 4 ? (
+          {currentStep < 3 ? (
             <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
               <Text style={styles.nextBtnText}>Next ➡️</Text>
             </TouchableOpacity>
@@ -585,4 +591,106 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textTransform: "uppercase",
   },
+  dropdownStepContainer: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    backgroundColor: "transparent",
+    width: "100%",
+  },
+  miniLoaderWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#f1f5f9",
+    padding: 10,
+    borderRadius: 8,
+    height: 44,
+  },
+  miniLoaderText: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  dropdownRelativeAnchor: {
+    position: "relative",
+    width: "100%",
+    height: 44,
+    marginTop: 6,
+  },
+  toggleStepContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    width: "100%",
+  },
+  segmentToggleTrack: {
+    flexDirection: "row",
+    backgroundColor: "#e2e8f0", // Clean tracking groove background
+    borderRadius: 8,
+    padding: 3,
+    height: 44,
+    marginTop: 6,
+    width: "100%",
+  },
+  toggleSegmentButton: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 6,
+    transition: "all 0.15s ease-in-out",
+  },
+
+  // Dynamic Activation Background Rules
+  toggleSegmentActiveCash: {
+    backgroundColor: "#16a34a", // Emerald Green for immediate cash recognition
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+  },
+  toggleSegmentActiveCredit: {
+    backgroundColor: "#2563eb", // Royal Blue for corporate credit files
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+  },
+
+  // Label Typography Styles
+  toggleSegmentLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#475569",
+    letterSpacing: 0.5,
+  },
+  toggleLabelActiveLight: {
+    color: "#ffffff", // Pops clean text contrast over the colored states
+  },
 });
+
+const pickerStyles = {
+  nativeWebSelectElement: {
+    width: "100%",
+    height: "44px",
+    backgroundColor: "#ffffff",
+    border: "1px solid #cbd5e1",
+    borderRadius: "8px",
+    padding: "0 36px 0 12px",
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#0f172a",
+    outline: "none",
+    cursor: "pointer",
+    appearance: "none", // Strips away default browser rendering bugs
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+    fontFamily: "sans-serif",
+  },
+  chevronDecorationIconPointer: {
+    position: "absolute",
+    right: 14,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+};

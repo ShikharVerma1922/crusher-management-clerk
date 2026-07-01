@@ -1,9 +1,9 @@
-// src/services/apiClient.js
 import axios from "axios";
+import { API_CONFIG } from "../constants";
 
 const apiClient = axios.create({
-  baseURL: "http://localhost:3000",
-  timeout: 6000, // Slightly extended to 6 seconds to give weak signals a chance
+  baseURL: API_CONFIG.BASE_URL,
+  timeout: API_CONFIG.TIMEOUT,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",

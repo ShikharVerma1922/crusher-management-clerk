@@ -4,6 +4,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Network from "expo-network";
 import { AuthContext } from "./AuthContext";
 import apiClient from "../services/apiClient";
+import { generateTicketIdentities } from "../utils/idGenerator";
+import { apiServices } from "../services/apiServices";
 
 export const LedgerContext = createContext(null);
 
@@ -23,8 +25,7 @@ export const LedgerProvider = ({ children }) => {
       try {
         const status = await Network.getNetworkStateAsync();
         if (!(status.isConnected && status.isInternetReachable)) return false;
-        await apiClient.get("/api/test", { timeout: 2000 });
-        return true;
+        return await apiServices.isOnline();
       } catch (err) {
         return false;
       }
@@ -77,14 +78,12 @@ export const LedgerProvider = ({ children }) => {
   // 1️⃣ APPEND NEW TRANSACTION OP TO QUEUE
   const appendNewTicket = async (newTicket) => {
     try {
-      // Setup the base transaction UI block state parameters locally
       const ticketSchema = {
         ...newTicket,
         isVoid: false,
         voidReason: null,
         dbId: null,
       };
-      console.log(newTicket);
 
       const existingData =
         (await AsyncStorage.getItem("@mandar_weighbridge_ledger")) || "[]";
@@ -169,6 +168,7 @@ export const LedgerProvider = ({ children }) => {
   // 🚀 3️⃣ STRICT FIRST-IN, FIRST-OUT PROCESSING WORKER ENGINE
   const flushOperationQueue = async () => {
     try {
+      // await AsyncStorage.clear();
       const queueData = await AsyncStorage.getItem("@mandar_sync_ops_queue");
       if (!queueData) return;
 
@@ -193,15 +193,17 @@ export const LedgerProvider = ({ children }) => {
             console.log(
               `🚛 Processing ordered CREATE payload for local ID: [${currentOp.localId}]`,
             );
-            // console.log(currentOp.payload);
-            const response = await apiClient.post(
-              "/api/transactions",
-              // { hello: "world" },
+
+            // const response = await apiClient.post(
+            //   "/transactions",
+            //   currentOp.payload,
+            // );
+            const serverData = await apiServices.postTransaction(
               currentOp.payload,
             );
 
-            if (response.status === 201 || response.status === 200) {
-              const serverEntity = response.data?.data || response.data;
+            if (serverData.status === 201 || serverData.status === 200) {
+              const serverEntity = serverData.data?.data;
               const trueDatabaseId = serverEntity?.id || serverEntity?._id;
 
               if (trueDatabaseId) {
@@ -228,12 +230,12 @@ export const LedgerProvider = ({ children }) => {
             console.log(
               `🛑 Processing ordered VOID payload for target DB Key: [${resolvedDatabaseKey}]`,
             );
-            const response = await apiClient.post("/api/void-requests", {
-              transactionId: resolvedDatabaseKey,
-              reason: currentOp.reason,
-            });
+            const serverData = await apiServices.postVoidRequest(
+              resolvedDatabaseKey,
+              currentOp.reason,
+            );
 
-            if (response.status === 201 || response.status === 200) {
+            if (serverData.status === 201 || serverData.status === 200) {
               const tIdx = allTickets.findIndex(
                 (t) => t.id === currentOp.localId,
               );

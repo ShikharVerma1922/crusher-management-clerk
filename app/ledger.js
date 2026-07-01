@@ -9,8 +9,8 @@ import {
   Alert,
   Modal,
 } from "react-native";
-import { useLedger } from "../src/context/LedgerContext";
-import { useAuth } from "../src/context/AuthContext";
+import { useLedger } from "../src/context/LedgerContext.js";
+import { useAuth } from "../src/context/AuthContext.js";
 
 export default function LedgerHistoryScreen() {
   const { transactions, voidTransactionTicket } = useLedger();
@@ -18,7 +18,7 @@ export default function LedgerHistoryScreen() {
 
   // Modal Control States
   const [reasonModalVisible, setReasonModalVisible] = useState(false);
-  const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   // 📝 Standard Auditable Void Reasons for Weighbridge Operations
   const VOID_REASONS = [
@@ -44,23 +44,30 @@ export default function LedgerHistoryScreen() {
     );
   };
 
-  const handleInitiateVoidFlow = (ticketId) => {
-    setSelectedTicketId(ticketId);
+  const handleInitiateVoidFlow = (ticketId, receiptNumber) => {
+    setSelectedTicket({
+      id: ticketId,
+      receiptNumber,
+    });
     setReasonModalVisible(true);
   };
 
   const handleSelectReasonAndExecute = async (reason) => {
+    if (!selectedTicket) return;
+
     setReasonModalVisible(false);
+
     try {
-      await voidTransactionTicket(selectedTicketId, reason);
+      await voidTransactionTicket(selectedTicket.id, reason);
+
       Alert.alert(
         "Log Invalidated ❌",
-        `Receipt ${selectedTicketId} successfully flagged as void.`,
+        `Receipt ${selectedTicket.receiptNumber} successfully flagged as void.`,
       );
     } catch (err) {
       Alert.alert("Operation Error", "Could not invalidate target file.");
     } finally {
-      setSelectedTicketId(null);
+      setSelectedTicket(null);
     }
   };
 
@@ -163,24 +170,6 @@ export default function LedgerHistoryScreen() {
 
         <View style={styles.weightsGrid}>
           <View style={styles.weightColumn}>
-            <Text style={styles.weightLabel}>Gross Weight</Text>
-            <Text
-              style={[styles.weightValue, isVoided && styles.voidedTextCrossed]}
-            >
-              {item.grossWeight.toLocaleString("en-IN")}{" "}
-              <Text style={styles.unitText}>kg</Text>
-            </Text>
-          </View>
-          <View style={styles.weightColumn}>
-            <Text style={styles.weightLabel}>Tare Weight</Text>
-            <Text
-              style={[styles.weightValue, isVoided && styles.voidedTextCrossed]}
-            >
-              {item.tareWeight.toLocaleString("en-IN")}{" "}
-              <Text style={styles.unitText}>kg</Text>
-            </Text>
-          </View>
-          <View style={styles.weightColumn}>
             <Text
               style={[
                 styles.weightLabel,
@@ -197,9 +186,7 @@ export default function LedgerHistoryScreen() {
             >
               {isVoided
                 ? "0"
-                : (item.grossWeight - item.tareWeight).toLocaleString(
-                    "en-IN",
-                  )}{" "}
+                : Number(item.totalAmount ?? 0).toLocaleString("en-IN")}{" "}
               <Text style={styles.unitText}>kg</Text>
             </Text>
           </View>
@@ -215,14 +202,17 @@ export default function LedgerHistoryScreen() {
               isVoided && styles.voidedMonetaryHighlight,
             ]}
           >
-            ₹{isVoided ? "0.00" : item.totalAmount.toLocaleString("en-IN")}
+            ₹
+            {isVoided
+              ? "0.00"
+              : Number(item.totalAmount ?? 0).toLocaleString("en-IN")}
           </Text>
         </View>
 
         {!isVoided && (
           <TouchableOpacity
             style={styles.voidCardActionButton}
-            onPress={() => handleInitiateVoidFlow(item.dbId)}
+            onPress={() => handleInitiateVoidFlow(item.id, item.receiptNumber)}
           >
             <Text style={styles.voidCardActionButtonText}>
               ⚠️ Void & Invalidate Receipt Log
@@ -273,7 +263,10 @@ export default function LedgerHistoryScreen() {
         animationType="slide"
         transparent={true}
         visible={reasonModalVisible}
-        onRequestClose={() => setReasonModalVisible(false)}
+        onRequestClose={() => {
+          setReasonModalVisible(false);
+          setSelectedTicket(null);
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContentCard}>
@@ -281,8 +274,8 @@ export default function LedgerHistoryScreen() {
               Audit Regulation Requirement
             </Text>
             <Text style={styles.modalSubtitleText}>
-              Select the official operating reason to void ticket{" "}
-              {selectedTicketId}:
+              Select the official operating reason to void receipt{" "}
+              {selectedTicket?.receiptNumber ?? ""}:
             </Text>
 
             {VOID_REASONS.map((reason) => (
@@ -297,7 +290,10 @@ export default function LedgerHistoryScreen() {
 
             <TouchableOpacity
               style={styles.modalCancelBtn}
-              onPress={() => setReasonModalVisible(false)}
+              onPress={() => {
+                setReasonModalVisible(false);
+                setSelectedTicket(null);
+              }}
             >
               <Text style={styles.modalCancelBtnText}>Dismiss Request</Text>
             </TouchableOpacity>
