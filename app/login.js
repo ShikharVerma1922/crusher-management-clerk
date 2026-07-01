@@ -50,10 +50,8 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🏭 Mandar Crusher Terminal</Text>
-      <Text style={styles.subtitle}>
-        Enter Operator Credentials to Verify Session:
-      </Text>
+      <Text style={styles.title}>Mandar Crusher Terminal</Text>
+      <Text style={styles.subtitle}>Enter Operator Credentials</Text>
 
       <TextInput
         style={styles.inputField}

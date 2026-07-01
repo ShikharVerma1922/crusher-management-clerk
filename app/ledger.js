@@ -11,9 +11,12 @@ import {
 } from "react-native";
 import { useLedger } from "../src/context/LedgerContext.js";
 import { useAuth } from "../src/context/AuthContext.js";
+import { TicketCard } from "../src/components/ReceiptCardItem.js";
+import { Box, Boxes, DoorClosedLocked, Package } from "lucide-react-native";
 
 export default function LedgerHistoryScreen() {
   const { transactions, voidTransactionTicket } = useLedger();
+
   const { logout, clerk } = useAuth();
 
   // Modal Control States
@@ -71,178 +74,27 @@ export default function LedgerHistoryScreen() {
     }
   };
 
-  const renderTicketCardItem = ({ item }) => {
-    const isVoided = item.isVoid === true;
-
-    return (
-      <View style={[styles.auditCard, isVoided && styles.voidedCardBg]}>
-        <View style={styles.cardHeaderRow}>
-          <View>
-            <Text
-              style={[
-                styles.receiptIdText,
-                isVoided && styles.voidedTextCrossed,
-              ]}
-            >
-              {item.receiptNumber} {isVoided ? "[VOIDED]" : ""}
-            </Text>
-            <Text style={styles.timestampLabel}>{item.createdAt}</Text>
-          </View>
-          <View
-            style={[
-              styles.syncBadge,
-              isVoided
-                ? styles.voidBadgeBorder
-                : item.synced
-                  ? styles.syncedBg
-                  : styles.pendingBg,
-            ]}
-          >
-            <Text
-              style={[
-                styles.syncStatusText,
-                isVoided
-                  ? styles.voidBadgeText
-                  : item.synced
-                    ? styles.syncedText
-                    : styles.pendingText,
-              ]}
-            >
-              {isVoided
-                ? "❌ Invalidated"
-                : item.synced
-                  ? "● Synced"
-                  : "⏳ Offline"}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.logisticsIdentityRow}>
-          <View style={styles.vehicleBlock}>
-            <Text style={styles.metaLabelHeader}>Vehicle Number</Text>
-            <Text
-              style={[
-                styles.vehiclePlateText,
-                isVoided && styles.voidedTextCrossed,
-              ]}
-            >
-              {item.vehicleNumber}
-            </Text>
-          </View>
-          <View style={styles.customerBlock}>
-            <Text style={styles.metaLabelHeader}>Customer Account</Text>
-            <Text
-              style={[
-                styles.customerDetailText,
-                isVoided && styles.voidedTextCrossed,
-              ]}
-              numberOfLines={1}
-            >
-              {item.customerName}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.materialPillContainer}>
-          <Text style={styles.materialPillLabel}>Material Type</Text>
-          <View
-            style={[
-              styles.materialBadge,
-              isVoided && styles.voidedMaterialBadge,
-            ]}
-          >
-            <Text style={styles.materialBadgeText}>
-              🧱 {item.materialName || "Unclassified Aggregate"}
-            </Text>
-          </View>
-        </View>
-
-        {/* Display Void Reason Inline if Flagged */}
-        {isVoided && item.voidReason && (
-          <View style={styles.reasonDisplayBox}>
-            <Text style={styles.reasonDisplayText}>
-              ⚠️ Reason: {item.voidReason}
-            </Text>
-          </View>
-        )}
-
-        <View style={styles.dividerLine} />
-
-        <View style={styles.weightsGrid}>
-          <View style={styles.weightColumn}>
-            <Text
-              style={[
-                styles.weightLabel,
-                isVoided ? styles.weightLabel : { color: "#0284c7" },
-              ]}
-            >
-              Net Cargo
-            </Text>
-            <Text
-              style={[
-                styles.weightValue,
-                isVoided ? styles.voidedTextCrossed : styles.netValueHighlight,
-              ]}
-            >
-              {isVoided
-                ? "0"
-                : Number(item.totalAmount ?? 0).toLocaleString("en-IN")}{" "}
-              <Text style={styles.unitText}>kg</Text>
-            </Text>
-          </View>
-        </View>
-
-        <View
-          style={[styles.cardFooterStrip, isVoided && styles.voidedFooterStrip]}
-        >
-          <Text style={styles.commercialLabel}>Total Cash Settlement</Text>
-          <Text
-            style={[
-              styles.monetaryValueHighlight,
-              isVoided && styles.voidedMonetaryHighlight,
-            ]}
-          >
-            ₹
-            {isVoided
-              ? "0.00"
-              : Number(item.totalAmount ?? 0).toLocaleString("en-IN")}
-          </Text>
-        </View>
-
-        {!isVoided && (
-          <TouchableOpacity
-            style={styles.voidCardActionButton}
-            onPress={() => handleInitiateVoidFlow(item.id, item.receiptNumber)}
-          >
-            <Text style={styles.voidCardActionButtonText}>
-              ⚠️ Void & Invalidate Receipt Log
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
-  };
-
   return (
     <View style={styles.screenContainer}>
       <View style={styles.adminControlHeaderBar}>
         <View>
-          <Text style={styles.adminHeaderTitle}>SHIFT LOGS LEDGER</Text>
           <Text style={styles.adminHeaderSubtitle}>
-            {transactions.length} Active Records
+            {transactions.filter((transaction) => !transaction.isVoid).length}{" "}
+            Active Records
           </Text>
         </View>
         <TouchableOpacity
           style={styles.headerLogoutBtn}
           onPress={handlePressCloseShift}
         >
-          <Text style={styles.headerLogoutBtnText}>🚪 Close Shift</Text>
+          <DoorClosedLocked size={20} color={"#475569"} />
+          <Text style={styles.headerLogoutBtnText}> Close Shift</Text>
         </TouchableOpacity>
       </View>
 
       {transactions.length === 0 ? (
         <View style={styles.emptyStateCenteringWrapper}>
-          <Text style={styles.emptyStateIcon}>📦</Text>
+          <Package size={80} color={"#64748b"} />
           <Text style={styles.emptyStateTitle}>Ledger Logs Empty</Text>
           <Text style={styles.emptyStateSubtitle}>
             No trucks have been processed during this active shift session yet.
@@ -252,7 +104,9 @@ export default function LedgerHistoryScreen() {
         <FlatList
           data={transactions}
           keyExtractor={(item) => item.dbId}
-          renderItem={renderTicketCardItem}
+          renderItem={({ item }) => (
+            <TicketCard item={item} onVoidTrigger={handleInitiateVoidFlow} />
+          )}
           contentContainerStyle={styles.listScrollPaddingWrapper}
           showsVerticalScrollIndicator={false}
         />
@@ -305,53 +159,73 @@ export default function LedgerHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  screenContainer: { flex: 1, backgroundColor: "#f8fafc" },
-  listScrollPaddingWrapper: { padding: 16, paddingBottom: 32 },
+  // 📱 SCREEN CORE CANVAS
+  screenContainer: {
+    flex: 1,
+    backgroundColor: "#ffffff", // Pure structural canvas
+  },
+  listScrollPaddingWrapper: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+
+  // 🏛️ ADMIN CONTROL MASTER HEADER
   adminControlHeaderBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "#ffffff",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderColor: "#e2e8f0",
+    paddingHorizontal: 24,
+    paddingVertical: 18,
+    borderBottomWidth: 1.5,
+    borderColor: "#0f172a", // Solid master anchor line
   },
   adminHeaderTitle: {
-    fontSize: 11,
-    fontWeight: "800",
+    fontSize: 10,
+    fontWeight: "700",
     color: "#64748b",
-    letterSpacing: 0.8,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
   },
   adminHeaderSubtitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#0f172a",
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#64748b",
+    letterSpacing: -0.5,
     marginTop: 2,
   },
   headerLogoutBtn: {
-    backgroundColor: "#fef2f2",
+    display: "flex",
+    flexDirection: "row",
+    gap: 4,
+    alignItems: "center",
+    backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "#fca5a5",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    borderColor: "#94a3b8",
+    paddingHorizontal: 14,
+    paddingVertical: 2,
+    borderRadius: 5,
   },
-  headerLogoutBtnText: { color: "#dc2626", fontSize: 12, fontWeight: "700" },
+  headerLogoutBtnText: {
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+
+  // 🎫 MINIMAL HISTORY LEDGER CARD CONTAINER
   auditCard: {
     backgroundColor: "#ffffff",
-    borderRadius: 10,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    paddingVertical: 18,
+    marginBottom: 12,
+    borderBottomWidth: 1.5,
+    borderColor: "#e2e8f0", // Sandwiched list separating lines
   },
-  voidedCardBg: { backgroundColor: "#f1f5f9", borderColor: "#cbd5e1" },
+  voidedCardBg: {
+    opacity: 0.6, // Soft desaturated state instead of raw colors
+  },
   cardHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -360,185 +234,207 @@ const styles = StyleSheet.create({
   },
   receiptIdText: {
     color: "#0f172a",
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "800",
-    letterSpacing: 0.3,
   },
-  voidedTextCrossed: { textDecorationLine: "line-through", color: "#94a3b8" },
+  voidedTextCrossed: {
+    textDecorationLine: "line-through",
+    color: "#94a3b8",
+  },
   timestampLabel: {
     color: "#94a3b8",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
-    marginTop: 2,
+    marginTop: 4,
   },
+
+  // STATUS BADGES
   syncBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 2,
+    paddingVertical: 2,
   },
-  syncedBg: { backgroundColor: "#f0fdf4", borderColor: "#bbf7d0" },
-  pendingBg: { backgroundColor: "#fffbeb", borderColor: "#fef3c7" },
-  voidBadgeBorder: { backgroundColor: "#fef2f2", borderColor: "#fca5a5" },
+  syncedBg: {},
+  pendingBg: {},
+  voidBadgeBorder: {},
   syncStatusText: {
     fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
-  syncedText: { color: "#16a34a" },
-  pendingText: { color: "#d97706" },
-  voidBadgeText: { color: "#dc2626" },
+  syncedText: { color: "#64748b" }, // Subdued minimal state
+  pendingText: { color: "#d97706" }, // Clear action required text state
+  voidBadgeText: { color: "#b91c1c" },
+
+  // DATA DESCRIPTOR PAIRS
   logisticsIdentityRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 12,
   },
   vehicleBlock: { flex: 1, marginRight: 12 },
-  customerBlock: { flex: 1.2 },
+  customerBlock: { flex: 1.5 },
   metaLabelHeader: {
     fontSize: 10,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#94a3b8",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    letterSpacing: 0.8,
+    marginBottom: 2,
   },
-  vehiclePlateText: { color: "#0f172a", fontSize: 16, fontWeight: "800" },
-  customerDetailText: { color: "#475569", fontSize: 15, fontWeight: "700" },
+  vehiclePlateText: { color: "#0f172a", fontSize: 16, fontWeight: "700" },
+  customerDetailText: { color: "#0f172a", fontSize: 15, fontWeight: "600" },
+
+  // MATERIAL LAYOUT PILLS
   materialPillContainer: { width: "100%", marginBottom: 12 },
   materialPillLabel: {
     fontSize: 10,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#94a3b8",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 6,
+    letterSpacing: 0.8,
+    marginBottom: 4,
   },
   materialBadge: {
-    backgroundColor: "#f1f5f9",
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: "transparent",
     alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
   },
-  voidedMaterialBadge: { backgroundColor: "#e2e8f0", borderColor: "#cbd5e1" },
-  materialBadgeText: { color: "#334155", fontSize: 13, fontWeight: "700" },
+  voidedMaterialBadge: {},
+  materialBadgeText: { color: "#0f172a", fontSize: 14, fontWeight: "700" },
+
+  // VOID AUDIT NOTE BANNER
   reasonDisplayBox: {
-    backgroundColor: "#fee2e2",
-    borderRadius: 6,
+    backgroundColor: "#fff5f5",
+    borderLeftWidth: 3,
+    borderLeftColor: "#ef4444",
     padding: 10,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#fca5a5",
+    marginVertical: 8,
   },
-  reasonDisplayText: { color: "#991b1b", fontSize: 13, fontWeight: "700" },
-  dividerLine: { height: 1, backgroundColor: "#f1f5f9", marginBottom: 14 },
+  reasonDisplayText: { color: "#991b1b", fontSize: 13, fontWeight: "500" },
+  dividerLine: { height: 1, backgroundColor: "#f1f5f9", marginBottom: 12 },
+
+  // QUANTITY STRUCTURAL COLUMNS
   weightsGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 16,
+    marginBottom: 14,
   },
   weightColumn: { flex: 1 },
   weightLabel: {
     color: "#64748b",
     fontSize: 11,
-    fontWeight: "700",
-    marginBottom: 4,
+    fontWeight: "600",
+    marginBottom: 2,
   },
-  weightValue: { color: "#334155", fontSize: 15, fontWeight: "800" },
-  netValueHighlight: { color: "#0284c7", fontSize: 16 },
-  unitText: { fontSize: 11, color: "#94a3b8", fontWeight: "600" },
+  weightValue: { color: "#0f172a", fontSize: 16, fontWeight: "700" },
+  netValueHighlight: { color: "#0f172a", fontWeight: "800" },
+  unitText: { fontSize: 11, color: "#94a3b8", fontWeight: "500" },
+
+  // RECEPTACLE COMMERCIAL FOOTER STRIP
   cardFooterStrip: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#f8fafc",
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
+    backgroundColor: "#ffffff",
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
     borderColor: "#e2e8f0",
+    paddingVertical: 12,
   },
-  voidedFooterStrip: { backgroundColor: "#e2e8f0", borderColor: "#cbd5e1" },
-  commercialLabel: { color: "#475569", fontSize: 13, fontWeight: "700" },
-  monetaryValueHighlight: { color: "#16a34a", fontSize: 18, fontWeight: "900" },
+  voidedFooterStrip: { opacity: 0.5 },
+  commercialLabel: { color: "#475569", fontSize: 13, fontWeight: "600" },
+  monetaryValueHighlight: { color: "#0f172a", fontSize: 16, fontWeight: "800" },
   voidedMonetaryHighlight: { color: "#94a3b8" },
+
+  // ADMINISTRATIVE INVALIDATION BUTTON PANEL
   voidCardActionButton: {
     marginTop: 14,
-    borderStyle: "dashed",
-    borderWidth: 1.5,
-    borderColor: "#f87171",
-    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#cc0000",
     paddingVertical: 10,
     alignItems: "center",
-    backgroundColor: "#fff5f5",
+    backgroundColor: "#ffffff",
   },
   voidCardActionButtonText: {
-    color: "#dc2626",
+    color: "#cc0000",
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "700",
     textTransform: "uppercase",
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
+
+  // EMPTY RUNTIME STATES DISPLAY
   emptyStateCenteringWrapper: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 40,
-    marginTop: 100,
+    marginTop: 0,
   },
-  emptyStateIcon: { fontSize: 44, marginBottom: 12 },
+  emptyStateIcon: { fontSize: 36, marginBottom: 16, color: "#94a3b8" },
   emptyStateTitle: {
     color: "#0f172a",
     fontSize: 16,
-    fontWeight: "800",
+    fontWeight: "700",
     marginBottom: 6,
   },
   emptyStateSubtitle: {
     color: "#64748b",
-    fontSize: 13,
+    fontSize: 14,
     textAlign: "center",
-    lineHeight: 18,
+    lineHeight: 20,
   },
 
-  // 📋 Modal Sheet Styles
+  // 📋 EXECUTIVE ACTION MODAL OVERLAY ARCHITECTURE
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    backgroundColor: "rgba(15, 23, 42, 0.4)", // Muted architectural background mask
     justifyContent: "flex-end",
   },
   modalContentCard: {
     backgroundColor: "#ffffff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 24,
+    borderTopWidth: 2,
+    borderColor: "#0f172a", // Master top boundary anchor line
+    paddingHorizontal: 24,
+    paddingTop: 28,
     paddingBottom: 40,
   },
   modalTitleText: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "800",
     color: "#0f172a",
+    letterSpacing: -0.5,
     marginBottom: 6,
   },
   modalSubtitleText: {
     fontSize: 14,
     color: "#64748b",
-    marginBottom: 20,
+    marginBottom: 24,
     fontWeight: "500",
   },
   reasonOptionItem: {
-    backgroundColor: "#f8fafc",
-    borderColor: "#e2e8f0",
-    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    borderColor: "#cbd5e1",
     paddingVertical: 14,
     paddingHorizontal: 16,
-    marginBottom: 10,
-    borderWidth: 1,
+    marginBottom: 12,
+    borderBottomWidth: 1.5, // Employs underline list styling matching forms
   },
-  reasonOptionItemText: { color: "#334155", fontSize: 14, fontWeight: "700" },
-  modalCancelBtn: { alignItems: "center", marginTop: 14, paddingVertical: 12 },
-  modalCancelBtnText: { color: "#64748b", fontSize: 14, fontWeight: "700" },
+  reasonOptionItemText: {
+    color: "#0f172a",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  modalCancelBtn: {
+    alignItems: "center",
+    marginTop: 16,
+    paddingVertical: 12,
+  },
+  modalCancelBtnText: {
+    color: "#64748b",
+    fontSize: 14,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
 });

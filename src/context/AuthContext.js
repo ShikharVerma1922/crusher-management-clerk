@@ -51,10 +51,10 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log(`Attempting secure gateway dispatch for: ${username}`);
 
-      const serverData = await apiServices.login(username, password);
+      const { data, status } = await apiServices.login(username, password);
 
-      const identityProfile = serverData?.user;
-      const sessionId = serverData?.shiftId;
+      const identityProfile = data?.user;
+      const sessionId = data?.shiftId;
 
       // 🛡️ Safety fallback check to guarantee non-null entities go to AsyncStorage
       if (!identityProfile || !sessionId) {

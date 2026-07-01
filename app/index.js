@@ -18,6 +18,13 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import MaterialDropdown from "../src/components/MaterialDropdown";
 import { generateTicketIdentities } from "../src/utils/idGenerator";
 import { apiServices } from "../src/services/apiServices";
+import {
+  ArrowBigLeft,
+  ArrowBigRight,
+  Delete,
+  SaveCheck,
+  Trash2,
+} from "lucide-react-native";
 
 export default function WeighbridgeWizardScreen() {
   const { clerk, shiftId } = useAuth();
@@ -108,8 +115,8 @@ export default function WeighbridgeWizardScreen() {
   }, []);
 
   const handleKeypadPress = (val) => {
-    const targetState = currentStep === 1 ? quantity : amount;
-    const setter = currentStep === 1 ? setQuantity : setAmount;
+    const targetState = currentStep === 2 ? quantity : amount;
+    const setter = currentStep === 2 ? setQuantity : setAmount;
 
     if (val === "CLEAR") {
       setter("");
@@ -132,16 +139,16 @@ export default function WeighbridgeWizardScreen() {
 
       Keyboard.dismiss();
     }
-    if (currentStep === 1) {
-      if (!selectedMaterial)
-        return Alert.alert(
-          "Required Field",
-          "Please select a material type to continue.",
-        );
-      if (Number(quantity) <= 0)
-        return Alert.alert("Required Field", "Please enter the quantity.");
+    if (currentStep === 1 && !selectedMaterial) {
+      return Alert.alert(
+        "Required Field",
+        "Please select a material type to continue.",
+      );
     }
-    if (currentStep === 2 && Number(amount) <= 0)
+    if (currentStep === 2 && Number(quantity) <= 0)
+      return Alert.alert("Required Field", "Please enter quantity.");
+
+    if (currentStep === 3 && paymentType === "CASH" && Number(amount) <= 0)
       return Alert.alert("Required Field", "Please enter total amount.");
 
     setCurrentStep((prev) => prev + 1);
@@ -194,21 +201,30 @@ export default function WeighbridgeWizardScreen() {
         ["1", "2", "3"],
         ["4", "5", "6"],
         ["7", "8", "9"],
-        ["CLEAR", "0", "BACK"],
+        [
+          { value: "CLEAR", icon: <Trash2 size={22} /> },
+          "0",
+          { value: "BACK", icon: <Delete size={22} /> },
+        ],
       ].map((row, rIdx) => (
         <View key={rIdx} style={styles.keypadRow}>
-          {row.map((btn) => (
-            <TouchableOpacity
-              key={btn}
-              style={[
-                styles.keypadBtn,
-                (btn === "CLEAR" || btn === "BACK") && styles.keypadActionBtn,
-              ]}
-              onPress={() => handleKeypadPress(btn)}
-            >
-              <Text style={styles.keypadBtnText}>{btn}</Text>
-            </TouchableOpacity>
-          ))}
+          {row.map((btn, cIdx) => {
+            const isObject = typeof btn === "object";
+
+            return (
+              <TouchableOpacity
+                key={`${rIdx}-${cIdx}`}
+                onPress={() => handleKeypadPress(isObject ? btn.value : btn)}
+                style={styles.keypadBtn}
+              >
+                {isObject ? (
+                  btn.icon
+                ) : (
+                  <Text style={styles.keypadBtnText}>{btn}</Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       ))}
     </View>
@@ -218,12 +234,12 @@ export default function WeighbridgeWizardScreen() {
     <View style={styles.container}>
       {/* Step Indicator Top Bar */}
       <View style={styles.progressContainer}>
-        <Text style={styles.progressText}>STEP {currentStep + 1} OF 4</Text>
+        <Text style={styles.progressText}>STEP {currentStep + 1} OF 5</Text>
         <View style={styles.progressBarBg}>
           <View
             style={[
               styles.progressBarFill,
-              { width: `${((currentStep + 1) / 4) * 100}%` },
+              { width: `${((currentStep + 1) / 5) * 100}%` },
             ]}
           />
         </View>
@@ -234,7 +250,7 @@ export default function WeighbridgeWizardScreen() {
         {/* STEP 0: Identity Profile */}
         {currentStep === 0 && (
           <View style={styles.stepWrapper}>
-            <Text style={styles.stepTitle}>Freight Identity Profile</Text>
+            <Text style={styles.stepTitle}>Fill the information:</Text>
 
             <Text style={styles.fieldLabel}>Customer Name</Text>
             <TextInput
@@ -280,14 +296,24 @@ export default function WeighbridgeWizardScreen() {
             />
             {/* Quantity */}
 
-            <Text style={styles.stepTitle}>Quantity</Text>
+            {/* <Text style={styles.stepTitle}>Quantity</Text>
             <Text style={styles.giantValueDisplay}>{quantity || "0"}</Text>
+            {renderCustomKeypad()} */}
+          </View>
+        )}
+
+        {currentStep === 2 && (
+          <View style={styles.stepWrapper}>
+            <Text style={{ ...styles.stepTitle, marginTop: 30 }}>Quantity</Text>
+            <Text style={{ ...styles.giantValueDisplay }}>
+              {quantity || "0"}
+            </Text>
             {renderCustomKeypad()}
           </View>
         )}
 
         {/* STEP 2: Payment and Amount */}
-        {currentStep === 2 && (
+        {currentStep === 3 && (
           <View style={styles.stepWrapper}>
             {/* Payment type */}
             <View style={styles.segmentToggleTrack}>
@@ -330,14 +356,14 @@ export default function WeighbridgeWizardScreen() {
               </TouchableOpacity>
             </View>
             {/* Amount */}
-            <Text style={styles.stepTitle}>Total Amount</Text>
+            <Text style={{ ...styles.stepTitle }}>Total Amount</Text>
             <Text style={styles.giantValueDisplay}>{amount || "0"}</Text>
             {renderCustomKeypad()}
           </View>
         )}
 
-        {/* STEP 3: Ticket Summary Overview */}
-        {currentStep === 3 && (
+        {/* STEP 4: Ticket Summary Overview */}
+        {currentStep === 4 && (
           <View style={styles.stepWrapper}>
             <Text style={styles.stepTitle}>Review Ticket Summary</Text>
             <View style={styles.summaryBox}>
@@ -375,6 +401,10 @@ export default function WeighbridgeWizardScreen() {
                 </Text>
               </View>
               <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Payment Type:</Text>
+                <Text style={[styles.summaryVal]}>{paymentType}</Text>
+              </View>
+              <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Total Amount:</Text>
                 <Text style={[styles.summaryVal, { color: "#16a34a" }]}>
                   ₹{Number(amount || 0).toLocaleString("en-IN")}
@@ -388,22 +418,25 @@ export default function WeighbridgeWizardScreen() {
         <View style={styles.actionNavRow}>
           {currentStep > 0 ? (
             <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-              <Text style={styles.backBtnText}>⬅️ Back</Text>
+              <ArrowBigLeft />
+              <Text style={styles.backBtnText}> Back</Text>
             </TouchableOpacity>
           ) : (
             <View />
           )}
 
-          {currentStep < 3 ? (
+          {currentStep < 4 ? (
             <TouchableOpacity style={styles.nextBtn} onPress={handleNext}>
-              <Text style={styles.nextBtnText}>Next ➡️</Text>
+              <Text style={styles.nextBtnText}>Next</Text>
+              <ArrowBigRight color={"#ffffff"} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={styles.commitBtn}
               onPress={handleFinalCommit}
             >
-              <Text style={styles.commitBtnText}>💾 Confirm & Save</Text>
+              <SaveCheck color={"#ffffff"} />
+              <Text style={styles.commitBtnText}>Save</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -413,203 +446,251 @@ export default function WeighbridgeWizardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9", padding: 20 },
-  progressContainer: { marginBottom: 16 },
+  // MAIN SCENE LAYOUT
+  container: {
+    flex: 1,
+    backgroundColor: "#ffffff", // Pure canvas background
+    padding: 24,
+  },
+
+  // ELEGANT MINIMAL PROGRESS TIMELINE
+  progressContainer: {
+    marginBottom: 32,
+  },
   progressText: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#64748b",
-    letterSpacing: 1,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#94a3b8", // Crisp, muted slate
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
   },
   progressBarBg: {
-    height: 6,
-    backgroundColor: "#cbd5e1",
-    borderRadius: 3,
-    marginTop: 6,
-    overflow: "hidden",
+    height: 2,
+    backgroundColor: "#f1f5f9", // Razor-thin structural track
+    marginTop: 8,
   },
-  progressBarFill: { height: "100%", backgroundColor: "#0f172a" },
+  progressBarFill: {
+    height: "100%",
+    backgroundColor: "#0f172a", // Solid master anchor
+  },
+
+  // EXECUTIVE MASTER WORKSPACE FRAME
   cardFrame: {
     flex: 1,
     backgroundColor: "#ffffff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    padding: 24,
     justifyContent: "space-between",
   },
-  stepWrapper: { flex: 1, width: "100%", alignItems: "center", paddingTop: 10 },
+  stepWrapper: {
+    flex: 1,
+    width: "100%",
+  },
   stepTitle: {
-    fontSize: 15,
+    fontSize: 22,
     fontWeight: "800",
+    color: "#0f172a",
+    letterSpacing: -0.5,
+    marginBottom: 36,
+  },
+
+  // PREMIUM UNDERLINE INPUT ARCHITECTURE
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: "700",
     color: "#64748b",
-    marginBottom: 20,
     textTransform: "uppercase",
     letterSpacing: 1,
-    textAlign: "center",
-  },
-  fieldLabel: {
-    width: "100%",
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#475569",
-    textTransform: "uppercase",
-    marginBottom: 6,
-    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   formInput: {
     width: "100%",
-    backgroundColor: "#f8fafc",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-    fontSize: 18,
+    backgroundColor: "transparent",
+    borderBottomWidth: 1.5,
+    borderColor: "#cbd5e1", // Elegant bottom-border layout only
+    fontSize: 20,
     color: "#0f172a",
     fontWeight: "700",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+    marginBottom: 32,
   },
 
-  // 🪨 Grid Styling Matrix Block
+  // ASYMMETRICAL SELECTION GRID MATRIX
   gridContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
     width: "100%",
-    paddingBottom: 10,
   },
   gridCard: {
     width: "48%",
-    backgroundColor: "#f8fafc",
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: "#cbd5e1",
-    padding: 16,
-    alignItems: "center",
-    marginBottom: 14,
-    minHeight: 100,
-    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    alignItems: "flex-start", // Left-aligned metrics feel significantly cleaner
+    marginBottom: 16,
   },
-  gridCardSelected: { backgroundColor: "#eff6ff", borderColor: "#2563eb" }, // Royal blue border matching high contrast requirements
-  gridCardIcon: { fontSize: 28, marginBottom: 8 },
+  gridCardSelected: {
+    backgroundColor: "#f8fafc",
+    borderColor: "#0f172a",
+    borderWidth: 2,
+  },
+  gridCardIcon: {
+    fontSize: 20,
+    marginBottom: 12,
+  },
   gridCardLabel: {
     fontSize: 14,
-    fontWeight: "700",
-    color: "#334155",
-    textAlign: "center",
+    fontWeight: "600",
+    color: "#475569",
   },
-  gridCardLabelSelected: { color: "#1e40af" },
+  gridCardLabelSelected: {
+    color: "#0f172a",
+    fontWeight: "800",
+  },
 
+  // MONOLITH VALUE DISPLAY UNITS
   giantValueDisplay: {
-    fontSize: 46,
+    fontSize: 54,
     fontWeight: "900",
     color: "#0f172a",
-    marginBottom: 16,
-    borderBottomWidth: 2,
-    borderBottomColor: "#e2e8f0",
-    width: "100%",
-    textAlign: "center",
-    paddingBottom: 8,
-    letterSpacing: 1,
+    letterSpacing: -1,
+    textAlign: "left",
+    padding: 12,
+    marginTop: 8,
+    marginBottom: 20,
   },
-  keypadContainer: { width: "100%", maxWidth: 320, marginTop: 10 },
+
+  // HIGH-DENSITY TACTILE KEYPAD
+  keypadContainer: {
+    width: "100%",
+    marginTop: 16,
+  },
   keypadRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   keypadBtn: {
     flex: 1,
-    height: 54,
-    backgroundColor: "#f8fafc",
-    borderRadius: 8,
+    height: 56,
+    backgroundColor: "#ffffff",
     borderWidth: 1,
-    borderColor: "#cbd5e1",
+    borderColor: "#f1f5f9", // Invisible/soft borders until action
     justifyContent: "center",
     alignItems: "center",
-    marginHorizontal: 4,
-    elevation: 1,
+    marginHorizontal: 6,
   },
-  keypadActionBtn: { backgroundColor: "#e2e8f0" },
-  keypadBtnText: { fontSize: 18, fontWeight: "800", color: "#0f172a" },
+  keypadActionBtn: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 0,
+  },
+  keypadBtnText: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#0f172a",
+  },
+
+  // HIGH-END INVOICE STYLE SUMMARY MANIFEST
   summaryBox: {
     width: "100%",
-    backgroundColor: "#f8fafc",
-    borderRadius: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+    backgroundColor: "#ffffff",
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#0f172a", // Sandwiched layout lines
+    paddingVertical: 8,
   },
   summaryRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f1f5f9",
+    paddingVertical: 14,
   },
   summaryLabel: {
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "600",
     color: "#64748b",
-    textTransform: "uppercase",
   },
-  summaryVal: { fontSize: 16, fontWeight: "900", color: "#0f172a" },
+  summaryVal: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+
+  // NAVIGATION BAR COHESION RAIL
   actionNavRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: "#f1f5f9",
-    paddingTop: 16,
-    marginTop: 10,
+    paddingTop: 24,
+    marginTop: 16,
   },
   backBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
-  },
-  backBtnText: { color: "#475569", fontSize: 14, fontWeight: "700" },
-  nextBtn: {
-    backgroundColor: "#0f172a",
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 6,
-  },
-  nextBtnText: { color: "#ffffff", fontSize: 14, fontWeight: "700" },
-  commitBtn: {
-    backgroundColor: "#16a34a",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 6,
+    paddingHorizontal: 24,
+    backgroundColor: "transparent",
+  },
+  backBtnText: {
+    color: "#64748b",
+    fontSize: 14,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  nextBtn: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#0f172a",
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 0,
+    gap: 5,
+  },
+  nextBtnText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  commitBtn: {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#0f172a",
+    paddingVertical: 14,
+    paddingHorizontal: 36,
   },
   commitBtnText: {
     color: "#ffffff",
     fontSize: 14,
     fontWeight: "800",
     textTransform: "uppercase",
+    letterSpacing: 1,
   },
+
+  // DATA SELECT DROPDOWN ELEMENT
   dropdownStepContainer: {
     paddingVertical: 12,
-    paddingHorizontal: 4,
-    backgroundColor: "transparent",
     width: "100%",
   },
   miniLoaderWrapper: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#f1f5f9",
-    padding: 10,
-    borderRadius: 8,
+    borderBottomWidth: 1.5,
+    borderColor: "#cbd5e1",
+    paddingVertical: 10,
     height: 44,
   },
   miniLoaderText: {
-    fontSize: 12,
-    color: "#64748b",
-    fontWeight: "600",
+    fontSize: 13,
+    color: "#94a3b8",
   },
   dropdownRelativeAnchor: {
     position: "relative",
@@ -617,53 +698,45 @@ const styles = StyleSheet.create({
     height: 44,
     marginTop: 6,
   },
+
+  // PREMIUM FLAT EMBEDDED SEGMENT TRACKER
   toggleStepContainer: {
-    paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingVertical: 16,
     width: "100%",
   },
   segmentToggleTrack: {
     flexDirection: "row",
-    backgroundColor: "#e2e8f0", // Clean tracking groove background
-    borderRadius: 8,
-    padding: 3,
-    height: 44,
-    marginTop: 6,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 4,
+    height: 48,
+    marginTop: 0,
+    marginBottom: 20,
     width: "100%",
   },
   toggleSegmentButton: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 6,
-    transition: "all 0.15s ease-in-out",
   },
 
-  // Dynamic Activation Background Rules
+  // CRISP HIGH-CONTRAST SELECTION INVERSION
   toggleSegmentActiveCash: {
-    backgroundColor: "#16a34a", // Emerald Green for immediate cash recognition
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
+    backgroundColor: "#0f172a", // Rich deep space slate focus selection block
   },
   toggleSegmentActiveCredit: {
-    backgroundColor: "#2563eb", // Royal Blue for corporate credit files
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
+    backgroundColor: "#0f172a",
   },
-
-  // Label Typography Styles
   toggleSegmentLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
-    color: "#475569",
+    color: "#64748b",
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   toggleLabelActiveLight: {
-    color: "#ffffff", // Pops clean text contrast over the colored states
+    color: "#ffffff",
   },
 });
 

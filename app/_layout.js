@@ -4,6 +4,7 @@ import { Tabs } from "expo-router";
 import { Text, View, StyleSheet } from "react-native";
 import { AuthProvider } from "../src/context/AuthContext";
 import { LedgerProvider, useLedger } from "../src/context/LedgerContext";
+import { NotebookText, TicketPlus } from "lucide-react-native";
 
 // 📡 Unified Global Header Bar Component
 function GlobalHeaderTitleView({ screenTitle }) {
@@ -63,9 +64,7 @@ function TabsNavigationDeck() {
             <GlobalHeaderTitleView screenTitle="WEIGHBRIDGE TERMINAL" />
           ),
           tabBarLabel: "New Ticket",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 18 }}>🚛</Text>
-          ),
+          tabBarIcon: ({ color }) => <TicketPlus color={color} />,
         }}
       />
       <Tabs.Screen
@@ -75,9 +74,7 @@ function TabsNavigationDeck() {
             <GlobalHeaderTitleView screenTitle="SHIFT LOGS LEDGER" />
           ),
           tabBarLabel: "Logs Ledger",
-          tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 18 }}>📊</Text>
-          ),
+          tabBarIcon: ({ color }) => <NotebookText color={color} />,
         }}
       />
       <Tabs.Screen
@@ -85,6 +82,7 @@ function TabsNavigationDeck() {
         options={{
           href: null,
           headerShown: false,
+          tabBarStyle: { display: "none" },
         }}
       />
     </Tabs>
