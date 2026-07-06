@@ -1,5 +1,5 @@
 export const API_CONFIG = {
-  BASE_URL: "http://localhost:3000/api",
+  BASE_URL: "https://api.mandarenterprises.com/api",
   TIMEOUT: 6000,
 };
 

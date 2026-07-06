@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { CloudSync, CloudOff, Ban } from "lucide-react-native";
+import { CloudSync, CloudOff, Ban, CloudCheck } from "lucide-react-native";
+import BluetoothPrintButton from "./BluetoothPrintButton";
 
 export const TicketCard = ({ item, onVoidTrigger }) => {
   const isVoided = item.isVoid === true;
@@ -16,7 +17,7 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
           {isVoided ? (
             <Ban size={20} color={"red"} height={"30px"} />
           ) : item.synced ? (
-            <CloudSync size={20} color={"green"} height={"30px"} />
+            <CloudCheck size={20} color={"green"} height={"30px"} />
           ) : (
             <CloudOff size={20} color={"gray"} height={"30px"} />
           )}
@@ -93,15 +94,25 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
 
       {/* ACTION TRIGGERS */}
       {!isVoided && (
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() =>
-            onVoidTrigger(item.id || item.dbId, item.receiptNumber)
-          }
-          activeOpacity={0.8}
+        <View
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
         >
-          <Text style={styles.buttonText}>Void Ticket</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() =>
+              onVoidTrigger(item.id || item.dbId, item.receiptNumber)
+            }
+            activeOpacity={0.8}
+          >
+            <Text style={styles.buttonText}>Void Ticket</Text>
+          </TouchableOpacity>
+          <BluetoothPrintButton title="Customer Copy" transactionData={item} />
+        </View>
       )}
     </View>
   );
@@ -173,6 +184,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: "#ffffff",
     borderWidth: 1,
+    width: "40%",
     borderColor: "#cc0000",
     alignItems: "center",
     justifyContent: "center",

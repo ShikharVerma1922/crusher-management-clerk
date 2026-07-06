@@ -1,5 +1,5 @@
 // app/index.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Keyboard,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
 import { useLedger } from "../src/context/LedgerContext";
@@ -45,6 +47,34 @@ export default function WeighbridgeWizardScreen() {
   const [amount, setAmount] = useState("");
 
   const STORAGE_CACHE_KEY = "@mandar_crusher_materials_cache";
+
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const vehicleInputRef = useRef(null);
+  const customerInputRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      customerInputRef.current?.focus();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      "keyboardDidShow",
+      () => setKeyboardVisible(true),
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      "keyboardDidHide",
+      () => setKeyboardVisible(false),
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   useEffect(() => {
     async function loadMaterials() {
@@ -246,7 +276,11 @@ export default function WeighbridgeWizardScreen() {
       </View>
 
       {/* Main Form Step Core Card Wrapper */}
-      <View style={styles.cardFrame}>
+      <KeyboardAvoidingView
+        style={styles.cardFrame}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 100}
+      >
         {/* STEP 0: Identity Profile */}
         {currentStep === 0 && (
           <View style={styles.stepWrapper}>
@@ -254,15 +288,20 @@ export default function WeighbridgeWizardScreen() {
 
             <Text style={styles.fieldLabel}>Customer Name</Text>
             <TextInput
+              ref={customerInputRef}
               style={styles.formInput}
               placeholder="e.g. Mandar Logistics"
               placeholderTextColor="#94a3b8"
               value={customerName}
               onChangeText={setCustomerName}
+              onSubmitEditing={() => vehicleInputRef.current?.focus()}
+              blurOnSubmit={false}
+              returnKeyType="next"
             />
 
             <Text style={styles.fieldLabel}>Vehicle Number</Text>
             <TextInput
+              ref={vehicleInputRef}
               style={styles.formInput}
               placeholder="e.g. MH14EU9999"
               placeholderTextColor="#94a3b8"
@@ -270,6 +309,8 @@ export default function WeighbridgeWizardScreen() {
               autoCorrect={false}
               value={vehicleNumber}
               onChangeText={setVehicleNumber}
+              onSubmitEditing={() => handleNext()}
+              returnKeyType="next"
             />
           </View>
         )}
@@ -304,7 +345,7 @@ export default function WeighbridgeWizardScreen() {
 
         {currentStep === 2 && (
           <View style={styles.stepWrapper}>
-            <Text style={{ ...styles.stepTitle, marginTop: 30 }}>Quantity</Text>
+            <Text style={{ ...styles.stepTitle, marginTop: 0 }}>Quantity</Text>
             <Text style={{ ...styles.giantValueDisplay }}>
               {quantity || "0"}
             </Text>
@@ -356,7 +397,7 @@ export default function WeighbridgeWizardScreen() {
               </TouchableOpacity>
             </View>
             {/* Amount */}
-            <Text style={{ ...styles.stepTitle }}>Total Amount</Text>
+            {/* <Text style={{ ...styles.stepTitle }}>Total Amount</Text> */}
             <Text style={styles.giantValueDisplay}>{amount || "0"}</Text>
             {renderCustomKeypad()}
           </View>
@@ -440,7 +481,7 @@ export default function WeighbridgeWizardScreen() {
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -476,9 +517,10 @@ const styles = StyleSheet.create({
 
   // EXECUTIVE MASTER WORKSPACE FRAME
   cardFrame: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: "#ffffff",
     justifyContent: "space-between",
+    paddingBottom: 20,
   },
   stepWrapper: {
     flex: 1,
@@ -557,8 +599,7 @@ const styles = StyleSheet.create({
     color: "#0f172a",
     letterSpacing: -1,
     textAlign: "left",
-    padding: 12,
-    marginTop: 8,
+    paddingHorizontal: 12,
     marginBottom: 20,
   },
 
