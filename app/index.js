@@ -12,6 +12,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
 import { useAuth } from "../src/context/AuthContext";
 import { useLedger } from "../src/context/LedgerContext";
@@ -26,7 +27,10 @@ import {
   Delete,
   SaveCheck,
   Trash2,
+  X,
 } from "lucide-react-native";
+import { Button } from "expo-router/build/react-navigation";
+import BluetoothPrintButton from "../src/components/BluetoothPrintButton";
 
 export default function WeighbridgeWizardScreen() {
   const { clerk, shiftId } = useAuth();
@@ -45,20 +49,23 @@ export default function WeighbridgeWizardScreen() {
   const [site, setSite] = useState("");
   const [paymentType, setPaymentType] = useState("CASH");
   const [amount, setAmount] = useState("");
+  const [finalTicketRecord, setFinalTicketRecord] = useState({});
 
   const STORAGE_CACHE_KEY = "@mandar_crusher_materials_cache";
 
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const vehicleInputRef = useRef(null);
   const customerInputRef = useRef(null);
+  const [printModalVisible, setPrintModalVisible] = useState(false);
+  const [printStep, setPrintStep] = useState("customer");
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      customerInputRef.current?.focus();
-    }, 100);
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     customerInputRef.current?.focus();
+  //   }, 100);
 
-    return () => clearTimeout(timer);
-  }, []);
+  //   return () => clearTimeout(timer);
+  // }, []);
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
@@ -193,7 +200,7 @@ export default function WeighbridgeWizardScreen() {
 
     const { id, receiptNumber } = await generateTicketIdentities();
 
-    const finalTicketRecord = {
+    const finalTicket = {
       shiftId: shiftId,
       clerkId: clerk?.id,
       vehicleNumber: vehicleNumber.trim().toUpperCase(),
@@ -209,10 +216,23 @@ export default function WeighbridgeWizardScreen() {
       createdAt: new Date().toISOString(),
       synced: false,
     };
-
+    setFinalTicketRecord(finalTicket);
     try {
-      await appendNewTicket(finalTicketRecord);
-      Alert.alert("Success ✅", `Ticket ${receiptNumber} saved successfully!`);
+      await appendNewTicket(finalTicket);
+      // Alert.alert("Success ✅", `Ticket ${receiptNumber} saved successfully!`);
+      setPrintModalVisible(true);
+      setPrintStep("customer");
+    } catch (e) {
+      Alert.alert("Error ❌", "Could not write transaction log.");
+    }
+  };
+
+  const handlePrintCompleted = async () => {
+    if (printStep === "customer") {
+      setPrintStep("plant");
+    } else {
+      setPrintModalVisible(false);
+
       setVehicleNumber("");
       setCustomerName("");
       setAmount("");
@@ -220,9 +240,18 @@ export default function WeighbridgeWizardScreen() {
       setSite("");
       setPaymentType("CASH");
       setCurrentStep(0);
-    } catch (e) {
-      Alert.alert("Error ❌", "Could not write transaction log.");
     }
+  };
+
+  const handleCloseAndClear = () => {
+    setPrintModalVisible(false);
+    setVehicleNumber("");
+    setCustomerName("");
+    setAmount("");
+    setQuantity("");
+    setSite("");
+    setPaymentType("CASH");
+    setCurrentStep(0);
   };
 
   const renderCustomKeypad = () => (
@@ -482,6 +511,46 @@ export default function WeighbridgeWizardScreen() {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={printModalVisible}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>
+              {printStep === "customer"
+                ? "Print Customer Copy"
+                : "Print Plant Record"}
+            </Text>
+
+            {/* <Text style={styles.modalSub}>
+              {printStep === "customer"
+                ? "Hand off this receipt copy to the truck transit driver."
+                : "File this copy into the inner plant weighbridge ledger box."}
+            </Text> */}
+
+            <BluetoothPrintButton
+              title={printStep === "customer" ? "Customer Copy" : "Plant Copy"}
+              transactionData={finalTicketRecord}
+              copyType={
+                printStep === "customer" ? "Customer Copy" : "Plant Copy"
+              }
+              onPrintComplete={handlePrintCompleted}
+            />
+
+            {/* Backup skip button if the paper rolls jam or the printer runs out of battery */}
+            <TouchableOpacity
+              onPress={handleCloseAndClear}
+              style={styles.closeButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <X size={22} color="#64748B" strokeWidth={2.5} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -778,6 +847,68 @@ const styles = StyleSheet.create({
   },
   toggleLabelActiveLight: {
     color: "#ffffff",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContainer: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: "#FFFFFF",
+    // borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+    // High-contrast shadow configuration for sleek depth elevation
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1E293B", // Deep slate primary text
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  modalSub: {
+    fontSize: 14,
+    color: "#64748B", // Neutral cool grey for contextual help details
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 10,
+  },
+  skipButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    width: "100%",
+    alignItems: "center",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0", // Light border line
+    backgroundColor: "#F8FAFC", // Subtle off-white contrast surface
+  },
+  skipText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 36,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 18,
   },
 });
 

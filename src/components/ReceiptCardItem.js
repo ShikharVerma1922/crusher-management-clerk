@@ -1,6 +1,13 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { CloudSync, CloudOff, Ban, CloudCheck } from "lucide-react-native";
+import {
+  CloudSync,
+  CloudOff,
+  Ban,
+  CloudCheck,
+  Delete,
+  Trash,
+} from "lucide-react-native";
 import BluetoothPrintButton from "./BluetoothPrintButton";
 
 export const TicketCard = ({ item, onVoidTrigger }) => {
@@ -10,18 +17,35 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
     <View style={[styles.cardContainer, isVoided && styles.voidedCard]}>
       {/* HEADER SECTION */}
       <View style={styles.row}>
-        <Text style={[styles.boldText, isVoided && styles.lineThrough]}>
-          Receipt No: {item.receiptNumber}
-        </Text>
-        <Text style={styles.text}>
-          {isVoided ? (
-            <Ban size={20} color={"red"} height={"30px"} />
-          ) : item.synced ? (
-            <CloudCheck size={20} color={"green"} height={"30px"} />
-          ) : (
-            <CloudOff size={20} color={"gray"} height={"30px"} />
-          )}
-        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 10,
+            alignItems: "center",
+          }}
+        >
+          <Text style={[styles.boldText, isVoided && styles.lineThrough]}>
+            Receipt No: {item.receiptNumber}
+          </Text>
+          <Text style={styles.text}>
+            {isVoided ? (
+              <Ban size={18} color={"red"} height={"30px"} />
+            ) : item.synced ? (
+              <CloudCheck size={18} color={"green"} height={"30px"} />
+            ) : (
+              <CloudOff size={18} color={"gray"} height={"30px"} />
+            )}
+          </Text>
+        </View>
+        {!isVoided && (
+          <Trash
+            size={20}
+            onPress={() =>
+              onVoidTrigger(item.id || item.dbId, item.receiptNumber)
+            }
+            style={{ color: "#f44336" }}
+          />
+        )}
       </View>
 
       <Text style={styles.subText}>
@@ -102,16 +126,16 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
             gap: 10,
           }}
         >
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() =>
-              onVoidTrigger(item.id || item.dbId, item.receiptNumber)
-            }
-            activeOpacity={0.8}
-          >
-            <Text style={styles.buttonText}>Void Ticket</Text>
-          </TouchableOpacity>
-          <BluetoothPrintButton title="Customer Copy" transactionData={item} />
+          <BluetoothPrintButton
+            title="Customer Copy"
+            transactionData={item}
+            copyType="Customer Copy"
+          />
+          <BluetoothPrintButton
+            title="Plant Copy"
+            transactionData={item}
+            copyType="Plant Copy"
+          />
         </View>
       )}
     </View>
@@ -180,12 +204,8 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   button: {
-    marginTop: 12,
-    paddingVertical: 8,
+    paddingVertical: 0,
     backgroundColor: "#ffffff",
-    borderWidth: 1,
-    width: "40%",
-    borderColor: "#cc0000",
     alignItems: "center",
     justifyContent: "center",
   },
