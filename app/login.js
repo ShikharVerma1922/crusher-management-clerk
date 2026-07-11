@@ -82,7 +82,7 @@ export default function LoginScreen() {
         {isLoggingIn ? (
           <ActivityIndicator color="#ffffff" />
         ) : (
-          <Text style={styles.btnText}>🔑 Authenticate & Open Shift</Text>
+          <Text style={styles.btnText}>Login</Text>
         )}
       </TouchableOpacity>
     </View>

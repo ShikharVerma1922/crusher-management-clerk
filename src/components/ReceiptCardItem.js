@@ -129,12 +129,12 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
           <BluetoothPrintButton
             title="Customer Copy"
             transactionData={item}
-            copyType="Customer Copy"
+            copyType="customer"
           />
           <BluetoothPrintButton
             title="Plant Copy"
             transactionData={item}
-            copyType="Plant Copy"
+            copyType="plant"
           />
         </View>
       )}

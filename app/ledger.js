@@ -12,7 +12,16 @@ import {
 import { useLedger } from "../src/context/LedgerContext.js";
 import { useAuth } from "../src/context/AuthContext.js";
 import { TicketCard } from "../src/components/ReceiptCardItem.js";
-import { Box, Boxes, DoorClosedLocked, Package } from "lucide-react-native";
+import BluetoothPrintButton from "../src/components/BluetoothPrintButton.js";
+import {
+  Box,
+  Boxes,
+  DoorClosedLocked,
+  LogOut,
+  Package,
+  Receipt,
+  ReceiptText,
+} from "lucide-react-native";
 
 export default function LedgerHistoryScreen() {
   const { transactions, voidTransactionTicket } = useLedger();
@@ -26,10 +35,10 @@ export default function LedgerHistoryScreen() {
   // 📝 Standard Auditable Void Reasons for Weighbridge Operations
   const VOID_REASONS = [
     "Operator Typo / Input Mistake",
-    "Truck Left Platform Scale",
-    "Wrong Material Selected",
     "Duplicate Ticket Generated",
-    "Scale Calibration Discrepancy",
+    "Wrong Material Selected",
+    "Payment not made",
+    "Order cancelled",
   ];
 
   const handlePressCloseShift = () => {
@@ -77,19 +86,23 @@ export default function LedgerHistoryScreen() {
   return (
     <View style={styles.screenContainer}>
       <View style={styles.adminControlHeaderBar}>
-        <View>
-          <Text style={styles.adminHeaderSubtitle}>
-            {transactions.filter((transaction) => !transaction.isVoid).length}{" "}
-            Active Records
-          </Text>
+        <View style={styles.headerActionsRow}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <ReceiptText size={18} style={styles.adminHeaderSubtitle} />
+            <Text style={styles.adminHeaderSubtitle}>
+              {transactions.filter((transaction) => !transaction.isVoid).length}
+              {" Records"}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.headerLogoutBtn}
+            onPress={handlePressCloseShift}
+          >
+            <Text>Logout</Text>
+            <LogOut size={18} color={"#475569"} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={styles.headerLogoutBtn}
-          onPress={handlePressCloseShift}
-        >
-          <DoorClosedLocked size={20} color={"#475569"} />
-          <Text style={styles.headerLogoutBtnText}> Close Shift</Text>
-        </TouchableOpacity>
+        <View></View>
       </View>
 
       {transactions.length === 0 ? (
@@ -103,7 +116,11 @@ export default function LedgerHistoryScreen() {
       ) : (
         <FlatList
           data={transactions}
-          keyExtractor={(item) => item.dbId}
+          keyExtractor={(item) =>
+            String(
+              item?.id ?? item?.dbId ?? item?.receiptNumber ?? item?.createdAt,
+            )
+          }
           renderItem={({ item }) => (
             <TicketCard item={item} onVoidTrigger={handleInitiateVoidFlow} />
           )}
@@ -128,7 +145,7 @@ export default function LedgerHistoryScreen() {
               Audit Regulation Requirement
             </Text>
             <Text style={styles.modalSubtitleText}>
-              Select the official operating reason to void receipt{" "}
+              Select the operating reason to void receipt{" "}
               {selectedTicket?.receiptNumber ?? ""}:
             </Text>
 
@@ -172,12 +189,11 @@ const styles = StyleSheet.create({
 
   // 🏛️ ADMIN CONTROL MASTER HEADER
   adminControlHeaderBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: "column",
+    alignItems: "left",
     backgroundColor: "#ffffff",
     paddingHorizontal: 24,
-    paddingVertical: 18,
+    paddingVertical: 3,
     borderBottomWidth: 1.5,
     borderColor: "#0f172a", // Solid master anchor line
   },
@@ -189,11 +205,18 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   adminHeaderSubtitle: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: "600",
     color: "#64748b",
-    letterSpacing: -0.5,
+    // letterSpacing: -0.5,
     marginTop: 2,
+  },
+  headerActionsRow: {
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
   },
   headerLogoutBtn: {
     display: "flex",

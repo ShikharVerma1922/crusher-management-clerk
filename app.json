@@ -12,15 +12,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.shikhar.mandarclerkapp"
+      "bundleIdentifier": "com.mandarenterprises.mandarclerkapp"
     },
     "android": {
-      "package": "com.shikhar.mandarclerkapp",
+      "package": "com.mandarenterprises.mandarclerkapp",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#445066",
+        "foregroundImage": "./assets/foreground.png",
+        "backgroundImage": "./assets/background.png"
       },
       "permissions": [
         "android.permission.BLUETOOTH",
@@ -41,10 +40,7 @@
         {
           "peripheralUsageDescription": "Allow MandarClerkApp to connect to thermal ticket printers via Bluetooth.",
           "alwaysUsageDescription": "Allow MandarClerkApp to discover logistics hardware components.",
-          "protocols": [
-            "com.datecs.linea.pro",
-            "com.bxl.protocol"
-          ]
+          "protocols": ["com.datecs.linea.pro", "com.bxl.protocol"]
         }
       ]
     ],

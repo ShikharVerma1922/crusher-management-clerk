@@ -4,7 +4,9 @@ import { Tabs } from "expo-router";
 import { Text, View, StyleSheet } from "react-native";
 import { AuthProvider } from "../src/context/AuthContext";
 import { LedgerProvider, useLedger } from "../src/context/LedgerContext";
+import { PrinterProvider } from "../src/context/PrinterContext";
 import { NotebookText, TicketPlus } from "lucide-react-native";
+import BluetoothPrintButton from "../src/components/BluetoothPrintButton";
 
 // 📡 Unified Global Header Bar Component
 function GlobalHeaderTitleView({ screenTitle }) {
@@ -12,25 +14,33 @@ function GlobalHeaderTitleView({ screenTitle }) {
 
   return (
     <View style={styles.headerContainer}>
-      <Text style={styles.headerMainTitle}>{screenTitle}</Text>
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        <Text style={styles.headerMainTitle}>{screenTitle}</Text>
 
-      {/* Dynamic Network Status Indicator Dot & Label */}
-      <View
-        style={[
-          styles.networkStatusPill,
-          isOnline ? styles.onlineBg : styles.offlineBg,
-        ]}
-      >
+        {/* Dynamic Network Status Indicator Dot & Label */}
         <View
           style={[
-            styles.statusDot,
-            isOnline ? styles.onlineDot : styles.offlineDot,
+            styles.networkStatusPill,
+            isOnline ? styles.onlineBg : styles.offlineBg,
           ]}
-        />
-        <Text style={styles.networkStatusText}>
+        >
+          <View
+            style={[
+              styles.statusDot,
+              isOnline ? styles.onlineDot : styles.offlineDot,
+            ]}
+          />
+          {/* <Text style={styles.networkStatusText}>
           {isOnline ? "ONLINE" : "OFFLINE"}
-        </Text>
+        </Text> */}
+        </View>
       </View>
+      <BluetoothPrintButton
+        title=""
+        transactionData={null}
+        showPrintButton={false}
+        showPrinterSelectorButton={true}
+      />
     </View>
   );
 }
@@ -61,7 +71,7 @@ function TabsNavigationDeck() {
         name="index"
         options={{
           headerTitle: () => (
-            <GlobalHeaderTitleView screenTitle="WEIGHBRIDGE TERMINAL" />
+            <GlobalHeaderTitleView screenTitle="TICKET TERMINAL" />
           ),
           tabBarLabel: "New Ticket",
           tabBarIcon: ({ color }) => <TicketPlus color={color} />,
@@ -71,7 +81,7 @@ function TabsNavigationDeck() {
         name="ledger"
         options={{
           headerTitle: () => (
-            <GlobalHeaderTitleView screenTitle="SHIFT LOGS LEDGER" />
+            <GlobalHeaderTitleView screenTitle="LOGS LEDGER" />
           ),
           tabBarLabel: "Logs Ledger",
           tabBarIcon: ({ color }) => <NotebookText color={color} />,
@@ -94,7 +104,9 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <LedgerProvider>
-        <TabsNavigationDeck />
+        <PrinterProvider>
+          <TabsNavigationDeck />
+        </PrinterProvider>
       </LedgerProvider>
     </AuthProvider>
   );
@@ -117,14 +129,14 @@ const styles = StyleSheet.create({
   networkStatusPill: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 20,
     borderWidth: 1,
   },
   onlineBg: { backgroundColor: "#064e3b", borderColor: "#059669" },
   offlineBg: { backgroundColor: "#7f1d1d", borderColor: "#dc2626" },
-  statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
   onlineDot: { backgroundColor: "#10b981" },
   offlineDot: { backgroundColor: "#f87171" },
   networkStatusText: {

@@ -84,47 +84,56 @@ export default function WeighbridgeWizardScreen() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadMaterials() {
       try {
-        console.log(
-          "📡 Attempting live synchronization with material registry...",
-        );
-        // const response = await apiClient.get("/materials/clerk");
-        const { data, status } = await apiServices.materialList();
+        setIsMaterialsLoading(true);
+
+        console.log("📡 Reloading material registry from API on app launch...");
+        const { data } = await apiServices.materialList();
 
         if (Array.isArray(data) && data.length > 0) {
-          setMaterials(data);
-          setSelectedMaterial(data[0].id || data[0].name);
-
-          // 🌟 CACHE IMMUTABLY: Save to hardware disk storage for offline boot sequences
           await AsyncStorage.setItem(STORAGE_CACHE_KEY, JSON.stringify(data));
+
+          if (isMounted) {
+            setMaterials(data);
+            setSelectedMaterial(data[0].id || data[0].name);
+          }
+
           console.log(
-            "💾 Material matrix successfully cached to local disk storage.",
+            "💾 Material matrix refreshed and cached to local disk storage.",
           );
         } else {
           throw new Error("Empty array payload returned from server.");
         }
       } catch (e) {
         console.log(
-          "⚠️ Network down or API failure. Pulling local hardware cache layers...",
+          "⚠️ API reload failed. Falling back to cached materials or defaults...",
         );
 
         try {
-          // Intercept local disk logs
           const cachedStringData =
             await AsyncStorage.getItem(STORAGE_CACHE_KEY);
 
           if (cachedStringData !== null) {
             const parsedCacheArray = JSON.parse(cachedStringData);
-            setMaterials(parsedCacheArray);
-            setSelectedMaterial(
-              parsedCacheArray[0].id || parsedCacheArray[0].name,
-            );
-            console.log(
-              "✅ Successfully initialized offline workspace via AsyncStorage cache.",
-            );
+
+            if (
+              Array.isArray(parsedCacheArray) &&
+              parsedCacheArray.length > 0
+            ) {
+              if (isMounted) {
+                setMaterials(parsedCacheArray);
+                setSelectedMaterial(
+                  parsedCacheArray[0].id || parsedCacheArray[0].name,
+                );
+              }
+              console.log("✅ Recovered cached materials after API failure.");
+            } else {
+              throw new Error("Cached data is empty.");
+            }
           } else {
-            // Bottom-tier fallback if the device has never been online since installation
             console.log(
               "🚨 Zero local cache footprints found. Injecting bootstrap defaults.",
             );
@@ -134,8 +143,11 @@ export default function WeighbridgeWizardScreen() {
               { id: "3", name: "River Sand", icon: "⏳" },
               { id: "4", name: "Stone Dust", icon: "💨" },
             ];
-            setMaterials(bootstrapDefaults);
-            setSelectedMaterial("1");
+
+            if (isMounted) {
+              setMaterials(bootstrapDefaults);
+              setSelectedMaterial("1");
+            }
           }
         } catch (cacheError) {
           console.error(
@@ -144,11 +156,17 @@ export default function WeighbridgeWizardScreen() {
           );
         }
       } finally {
-        setIsMaterialsLoading(false);
+        if (isMounted) {
+          setIsMaterialsLoading(false);
+        }
       }
     }
 
     loadMaterials();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleKeypadPress = (val) => {
@@ -162,6 +180,38 @@ export default function WeighbridgeWizardScreen() {
     } else {
       if (targetState.length < 6) setter(targetState + val);
     }
+  };
+
+  const formatVehicleNumber = (text) => {
+    const cleaned = text.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    let formatted = "";
+
+    for (let index = 0; index < cleaned.length; index += 1) {
+      const char = cleaned[index];
+      const position = index;
+
+      if (position < 2) {
+        if (/^[A-Z]$/.test(char)) formatted += char;
+      } else if (position < 4) {
+        if (/^[0-9]$/.test(char)) formatted += char;
+      } else if (position < 6) {
+        if (/^[A-Z]$/.test(char)) formatted += char;
+      } else if (/^[0-9]$/.test(char)) {
+        formatted += char;
+      }
+    }
+
+    return formatted.slice(0, 10);
+  };
+
+  const getVehicleKeyboardType = (value) => {
+    const cleaned = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const length = cleaned.length;
+
+    if (length < 2) return "default";
+    if (length < 4) return "number-pad";
+    if (length < 6) return "default";
+    return "number-pad";
   };
 
   const handleNext = () => {
@@ -313,13 +363,13 @@ export default function WeighbridgeWizardScreen() {
         {/* STEP 0: Identity Profile */}
         {currentStep === 0 && (
           <View style={styles.stepWrapper}>
-            <Text style={styles.stepTitle}>Fill the information:</Text>
+            {/* <Text style={styles.stepTitle}>Fill the information:</Text> */}
 
             <Text style={styles.fieldLabel}>Customer Name</Text>
             <TextInput
               ref={customerInputRef}
               style={styles.formInput}
-              placeholder="e.g. Mandar Logistics"
+              // placeholder="e.g. Mandar Logistics"
               placeholderTextColor="#94a3b8"
               value={customerName}
               onChangeText={setCustomerName}
@@ -336,8 +386,12 @@ export default function WeighbridgeWizardScreen() {
               placeholderTextColor="#94a3b8"
               autoCapitalize="characters"
               autoCorrect={false}
+              maxLength={10}
               value={vehicleNumber}
-              onChangeText={setVehicleNumber}
+              keyboardType={getVehicleKeyboardType(vehicleNumber)}
+              onChangeText={(text) =>
+                setVehicleNumber(formatVehicleNumber(text))
+              }
               onSubmitEditing={() => handleNext()}
               returnKeyType="next"
             />
@@ -534,9 +588,7 @@ export default function WeighbridgeWizardScreen() {
             <BluetoothPrintButton
               title={printStep === "customer" ? "Customer Copy" : "Plant Copy"}
               transactionData={finalTicketRecord}
-              copyType={
-                printStep === "customer" ? "Customer Copy" : "Plant Copy"
-              }
+              copyType={printStep}
               onPrintComplete={handlePrintCompleted}
             />
 

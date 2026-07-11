@@ -1,3 +1,4 @@
+import { Printer, PrinterCheck, PrinterX } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   StyleSheet,
@@ -8,23 +9,37 @@ import {
   ActivityIndicator,
   PermissionsAndroid,
   Platform,
+  Modal,
+  FlatList,
 } from "react-native";
 import RNBluetoothClassic from "react-native-bluetooth-classic";
+import { usePrinter } from "../context/PrinterContext";
 
 export default function BluetoothPrintButton({
   title = "RECEIPT COPY",
   transactionData,
-  copyType,
+  copyType = "plant",
   onPrintComplete,
+  showPrinterSelectorButton = false,
+  showPrintButton = true,
+  onOpenPrinterSelector,
 }) {
   const [isPrinting, setIsPrinting] = useState(false);
+  const {
+    selectedPrinter,
+    setSelectedPrinter,
+    discoveredDevices,
+    isScanning,
+    deviceModalVisible,
+    setDeviceModalVisible,
+    startDeviceDiscovery,
+    selectPrinter,
+    clearSelectedPrinter,
+    closeDeviceModal,
+  } = usePrinter();
 
-  // Formats text into raw ESC/POS command sequences for a standard 2-inch (58mm) or 3-inch (80mm) thermal printer
-  const lineWidth = 32;
-
-  const leftRight = (left, right) => {
-    const spaces = Math.max(1, lineWidth - left.length - right.length);
-    return left + " ".repeat(spaces) + right + "\n";
+  const openDeviceDiscovery = async () => {
+    await startDeviceDiscovery();
   };
 
   const generateEscPosString = (copyTitle, data) => {
@@ -45,6 +60,12 @@ export default function BluetoothPrintButton({
     const fontB = ESC + "M" + "\x01";
     const fontA = ESC + "M" + "\x00";
     const horizontalLine = "--------------------------------\n";
+    const lineWidth = 32;
+
+    const leftRight = (left, right) => {
+      const spaces = Math.max(1, lineWidth - left.length - right.length);
+      return left + " ".repeat(spaces) + right + "\n";
+    };
 
     let receipt = "";
     receipt += initializePrinter;
@@ -64,19 +85,21 @@ export default function BluetoothPrintButton({
     receipt += leftAlign;
     receipt += leftRight(
       `No. : ${data?.receiptNumber || "N/A"}`,
-      data?.createdAt
-        ? new Date(data.createdAt).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          })
-        : "N/A",
+      `Date : ${
+        data?.createdAt
+          ? new Date(data.createdAt).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })
+          : "N/A"
+      }`,
     );
-    receipt += `Buyer : ${data?.customerName || "N/A"}\n`;
-    receipt += `Site  : ${data?.site || ""}\n`;
-    receipt += `Mat.  : ${data?.materialName || "N/A"}\n`;
-    receipt += `Qty.  : ${data?.quantity || "N/A"}\n`;
-    receipt += `Time  : ${
+    receipt += `Buyer   : ${data?.customerName || "N/A"}\n`;
+    receipt += `Site    : ${data?.site || ""}\n`;
+    receipt += `Mat.    : ${data?.materialName || "N/A"}\n`;
+    receipt += `Qty.    : ${data?.quantity || "N/A"}\n`;
+    receipt += `Time    : ${
       data?.createdAt
         ? new Date(data.createdAt).toLocaleTimeString("en-IN", {
             hour: "2-digit",
@@ -86,7 +109,7 @@ export default function BluetoothPrintButton({
         : "N/A"
     }`;
     receipt += newline;
-    receipt += `V. No : ${data?.vehicleNumber || "N/A"}\n`;
+    receipt += `Vehicle : ${data?.vehicleNumber || "N/A"}\n`;
     receipt += horizontalLine;
     receipt += fontB;
     // receipt += condensedOn;
@@ -94,11 +117,11 @@ export default function BluetoothPrintButton({
       centerAlign + "Note: No quality guarantee after unloading." + newline;
     // receipt += condensedOff;
     receipt += fontA;
-    receipt += newline + newline;
+    receipt += newline;
     receipt += leftRight("Driver Sign", "Plant Sign");
     receipt += newline;
     receipt += centerAlign + "Thank You! Drive Safely." + newline;
-    receipt += newline + newline + newline + newline;
+    receipt += newline + newline + newline;
 
     return receipt;
   };
@@ -121,9 +144,43 @@ export default function BluetoothPrintButton({
     );
   };
 
-  const handlePrintSequence = async () => {
-    const granted = await requestBluetoothPermissions();
+  const ensurePrinterIsPaired = async (printer) => {
+    if (!printer?.address) {
+      throw new Error("Printer address is missing.");
+    }
 
+    const bondedDevices = await RNBluetoothClassic.getBondedDevices();
+    const existingBondedPrinter = bondedDevices.find(
+      (device) => device.address === printer.address,
+    );
+
+    if (existingBondedPrinter?.bonded) {
+      return existingBondedPrinter;
+    }
+
+    Alert.alert(
+      "Pairing Required",
+      `Please accept the Bluetooth pairing prompt for ${printer.name || "the printer"} on your phone.`,
+    );
+
+    return RNBluetoothClassic.pairDevice(printer.address);
+  };
+
+  const handlePrinterSelection = (printer) => {
+    selectPrinter(printer);
+  };
+
+  const openPrinterSelector = () => {
+    if (onOpenPrinterSelector) {
+      onOpenPrinterSelector();
+      return;
+    }
+
+    openDeviceDiscovery();
+  };
+
+  const handlePrintSequence = async (printer = selectedPrinter) => {
+    const granted = await requestBluetoothPermissions();
     if (!granted) {
       Alert.alert(
         "Permission Required",
@@ -131,9 +188,8 @@ export default function BluetoothPrintButton({
       );
       return;
     }
-    console.log("Bluetooth Module:", RNBluetoothClassic);
 
-    if (!RNBluetoothClassic?.isBluetoothEnabled) {
+    if (typeof RNBluetoothClassic?.isBluetoothEnabled !== "function") {
       Alert.alert("Bluetooth Error", "Native Bluetooth module is not loaded.");
       return;
     }
@@ -142,98 +198,91 @@ export default function BluetoothPrintButton({
       return;
     }
 
+    const printerToUse = printer ?? selectedPrinter;
+
+    if (!printerToUse) {
+      Alert.alert(
+        "No Printer Selected",
+        "Please select a printer first or tap Change Printer to choose one.",
+        [{ text: "Select Printer", onPress: openDeviceDiscovery }],
+      );
+      return;
+    }
+
     setIsPrinting(true);
 
     try {
-      console.log("temp : ", RNBluetoothClassic);
-
-      // 1. Check if Bluetooth is powered on
       const isBluetoothEnabled = await RNBluetoothClassic.isBluetoothEnabled();
+
       if (!isBluetoothEnabled) {
-        Alert.alert(
-          "Bluetooth Off",
-          "Please activate your phone's native Bluetooth antenna.",
-        );
-        setIsPrinting(false);
-        return;
-      }
-
-      // 2. Discover paired accessories
-      console.log("Checking paired devices first...");
-      let pairedDevices = await RNBluetoothClassic.getBondedDevices();
-
-      let targetPrinter = pairedDevices.find((device) => {
-        const name = (device.name || "").toLowerCase();
-        return (
-          name.includes("printer") ||
-          name.includes("pos") ||
-          name.includes("mpt") ||
-          name.includes("udyama") ||
-          name.includes("sr588")
-        );
-      });
-
-      // 🚀 LIVE SCAN FALLBACK: If not found in paired list, scan the air!
-      if (!targetPrinter) {
-        console.log(
-          "Printer not found in paired devices. Starting live discovery scan...",
-        );
-        Alert.alert(
-          "Scanning",
-          "Searching for nearby Udyama printer over the air...",
-        );
-
         try {
-          // Scans for unpaired devices nearby for roughly 5-10 seconds
-          const discoveredDevices = await RNBluetoothClassic.startDiscovery();
-          console.log(`Discovered ${discoveredDevices.length} devices nearby.`);
+          await RNBluetoothClassic.requestBluetoothEnabled();
 
-          targetPrinter = discoveredDevices.find((device) => {
-            const name = (device.name || "").toLowerCase();
-            return (
-              name.includes("printer") ||
-              name.includes("pos") ||
-              name.includes("mpt") ||
-              name.includes("sr588")
-            );
-          });
-        } catch (scanError) {
-          console.error("Discovery failed:", scanError);
+          // Give Android a moment to enable the adapter
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          if (!printer) {
+            openDeviceDiscovery();
+
+            return;
+          }
+        } catch {
+          Alert.alert(
+            "Bluetooth Required",
+            "Bluetooth must be enabled to print.",
+          );
+          return;
         }
       }
 
-      if (!targetPrinter) {
+      let targetPrinter;
+      try {
+        targetPrinter = await ensurePrinterIsPaired(printerToUse);
+      } catch (error) {
+        clearSelectedPrinter();
         Alert.alert(
-          "Printer Missing",
-          "Could not find any paired or nearby Bluetooth printers. Make sure the Udyama SR588 is turned on and discoverable.",
+          "Printer Not Paired",
+          error?.message || "The selected printer could not be paired.",
+          [
+            {
+              text: "Scan Printers",
+              onPress: openDeviceDiscovery,
+            },
+          ],
         );
-        setIsPrinting(false);
         return;
       }
 
-      console.log(
-        `Connecting to targeted printer: ${targetPrinter.name} (${targetPrinter.address})`,
-      );
+      if (!targetPrinter?.address) {
+        Alert.alert(
+          "Printer Not Available",
+          "The selected printer could not be prepared for printing.",
+        );
+        return;
+      }
 
-      // 3. Establish the socket channel safely
-      console.log(
-        `Targeting hardware address: ${targetPrinter.name} (${targetPrinter.address})`,
-      );
+      console.log("Target printer:");
+      console.log(JSON.stringify(targetPrinter, null, 2));
 
-      // 1. Force check if already connected
+      console.log("typeof isConnected =", typeof targetPrinter.isConnected);
+      console.log("typeof connect =", typeof targetPrinter.connect);
+      console.log("typeof write =", typeof targetPrinter.write);
+      console.log("typeof disconnect =", typeof targetPrinter.disconnect);
+      console.log("targetPrinter =", targetPrinter);
+      console.log("targetPrinter exists?", !!targetPrinter);
+
+      if (!targetPrinter) {
+        Alert.alert("Debug", "targetPrinter is undefined");
+        return;
+      }
       let isConnected = await targetPrinter.isConnected();
 
       if (!isConnected) {
         console.log(
           "Opening an Insecure RFCOMM Serial pipe to bypass handshake timeouts...",
         );
-
-        // 🚀 THE FIX: Pass an options object forcing an INSECURE connection.
-        // This tells the native Android Java layer to use 'createInsecureRfcommSocketToServiceRecord',
-        // which completely eliminates the 'read failed, socket might closed' error!
         isConnected = await targetPrinter.connect({
           connectorType: "rfcomm",
-          secure: false, // <-- This disables the strict hardware handshake requirement
+          secure: false,
         });
       }
 
@@ -244,13 +293,9 @@ export default function BluetoothPrintButton({
         await new Promise((resolve) => setTimeout(resolve, 600));
 
         console.log("Formatting and printing data packets...");
-        const formattedPrintJob = generateEscPosString(
-          copyType,
-          transactionData,
-        );
+        const formattedPrintJob = generateEscPosString(title, transactionData);
 
         await targetPrinter.write(formattedPrintJob);
-
         console.log("Print byte matrix transmitted successfully!");
 
         await new Promise((resolve) => setTimeout(resolve, 500));
@@ -264,11 +309,15 @@ export default function BluetoothPrintButton({
         );
       }
     } catch (error) {
-      console.error(error);
-      console.log(JSON.stringify(error, null, 2));
+      console.error("PRINT ERROR:", error);
+
+      if (error?.stack) {
+        console.error(error.stack);
+      }
+
       Alert.alert(
-        "Printing Fault",
-        `Hardware pipeline exception: ${error.message}`,
+        "Printer Not Found",
+        "Make sure that the printer is turned ON and in close proximity.",
       );
     } finally {
       setIsPrinting(false);
@@ -277,18 +326,123 @@ export default function BluetoothPrintButton({
 
   return (
     <View style={styles.wrapper}>
-      <TouchableOpacity
-        style={[styles.button, isPrinting && styles.buttonDisabled]}
-        onPress={handlePrintSequence}
-        disabled={isPrinting}
-        activeOpacity={0.7}
+      {showPrintButton ? (
+        <TouchableOpacity
+          style={[
+            copyType === "plant"
+              ? { backgroundColor: "orange" }
+              : { backgroundColor: "green" },
+            styles.button,
+            isPrinting &&
+              (copyType === "plant"
+                ? { backgroundColor: "#f2d68f" }
+                : { backgroundColor: "#A7F3D0" }),
+            ,
+          ]}
+          onPress={() => handlePrintSequence(selectedPrinter)}
+          disabled={isPrinting}
+          activeOpacity={0.7}
+        >
+          {isPrinting ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.buttonText}>Print {title}</Text>
+          )}
+        </TouchableOpacity>
+      ) : null}
+
+      {showPrinterSelectorButton ? (
+        <TouchableOpacity
+          style={styles.changeButton}
+          onPress={openPrinterSelector}
+          activeOpacity={0.7}
+        >
+          {selectedPrinter ? (
+            <PrinterCheck color={"#b6d7a8"} size={20} />
+          ) : (
+            <PrinterX color={"#ea9999"} size={20} />
+          )}
+        </TouchableOpacity>
+      ) : null}
+      {/* Bluetooth Device Management Control Panel Modal */}
+      <Modal
+        visible={deviceModalVisible}
+        animationType="slide"
+        transparent={true}
       >
-        {isPrinting ? (
-          <ActivityIndicator color="#FFFFFF" size="small" />
-        ) : (
-          <Text style={styles.buttonText}>Print {title}</Text>
-        )}
-      </TouchableOpacity>
+        <View style={styles.scannerOverlay}>
+          <View style={styles.scannerContainer}>
+            <Text style={styles.scannerTitle}>Bluetooth Printer Setup</Text>
+
+            {isScanning && (
+              <ActivityIndicator
+                size="small"
+                color="#1E3A8A"
+                style={{ marginBottom: 10 }}
+              />
+            )}
+
+            <FlatList
+              data={discoveredDevices}
+              keyExtractor={(item) => item.address}
+              style={{ width: "100%", maxHeight: 250 }}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>
+                  No paired or local peripherals found. Tap Rescan below.
+                </Text>
+              }
+              renderItem={({ item }) => {
+                const hasRealName =
+                  item.name &&
+                  item.name.trim() !== "" &&
+                  item.name !== item.address;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.deviceRow,
+                      selectedPrinter?.address === item.address &&
+                        styles.selectedDeviceRow,
+                    ]}
+                    onPress={() => {
+                      handlePrinterSelection(item);
+
+                      console.log(
+                        `Active printer assigned profile: ${item.name} [${item.address}]`,
+                      );
+                    }}
+                  >
+                    <View>
+                      <Text>{hasRealName ? item.name : "Unknown Device"}</Text>
+                    </View>
+                    {selectedPrinter?.address === item.address && (
+                      <Text style={styles.activeBadge}>Active</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+
+            <View style={styles.modalActionGroup}>
+              <TouchableOpacity
+                style={styles.rescanBtn}
+                onPress={startDeviceDiscovery}
+                disabled={isScanning}
+              >
+                <Text style={styles.rescanBtnText}>
+                  {isScanning ? "Scanning..." : "Rescan Devices"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={closeDeviceModal}
+              >
+                <Text style={styles.closeBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -304,10 +458,11 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    backgroundColor: "#228B22",
+    // backgroundColor: "#228B22",
     borderWidth: 1,
     alignSelf: "flex-start",
-    borderColor: "green",
+    // borderColor: "green",
+    borderWidth: 0,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -318,5 +473,103 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "600",
+  },
+  changeButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  changeButtonText: {
+    color: "#334155",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  scannerOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  scannerContainer: {
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#FFFFFF",
+    // borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+    elevation: 10,
+  },
+  scannerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginBottom: 16,
+  },
+  deviceRow: {
+    width: "100%",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderColor: "#F1F5F9",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  selectedDeviceRow: {
+    backgroundColor: "#EFF6FF",
+    // borderRadius: 8,
+    borderColor: "#3B82F6",
+  },
+  deviceName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#334155",
+  },
+  deviceAddress: {
+    fontSize: 12,
+    color: "#94A3B8",
+    marginTop: 2,
+  },
+  activeBadge: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#2563EB",
+  },
+  emptyText: {
+    textAlign: "center",
+    color: "#64748B",
+    fontSize: 14,
+    marginVertical: 20,
+  },
+  modalActionGroup: {
+    flexDirection: "row",
+    marginTop: 20,
+    gap: 10,
+    width: "100%",
+  },
+  rescanBtn: {
+    flex: 2,
+    backgroundColor: "#2563EB",
+    paddingVertical: 12,
+    // borderRadius: 8,
+    alignItems: "center",
+  },
+  rescanBtnText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  closeBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    paddingVertical: 12,
+    // borderRadius: 8,
+    alignItems: "center",
+  },
+  closeBtnText: {
+    color: "#64748B",
+    fontWeight: "600",
+    fontSize: 14,
   },
 });

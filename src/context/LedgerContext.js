@@ -15,7 +15,14 @@ export const LedgerProvider = ({ children }) => {
   const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
-    if (shiftId) loadCachedTickets();
+    const initializeLedger = async () => {
+      if (shiftId) {
+        await cleanupLedger();
+        await loadCachedTickets();
+      }
+    };
+
+    initializeLedger();
   }, [shiftId]);
 
   // Heartbeat polling monitor loop (Every 4 seconds)
@@ -57,6 +64,37 @@ export const LedgerProvider = ({ children }) => {
       if (networkSubscription) clearInterval(networkSubscription);
     };
   }, [shiftId]);
+
+  const cleanupLedger = async () => {
+    const ledgerData =
+      (await AsyncStorage.getItem("@mandar_weighbridge_ledger")) || "[]";
+
+    let allTickets = JSON.parse(ledgerData);
+
+    if (!Array.isArray(allTickets)) {
+      allTickets = [];
+    }
+
+    const RETENTION_PERIOD = 24 * 60 * 60 * 1000; // 24 hours
+    const now = Date.now();
+
+    const retainedTickets = allTickets.filter((ticket) => {
+      if (!ticket.synced) return true;
+
+      const createdAtTime = ticket?.createdAt
+        ? new Date(ticket.createdAt).getTime()
+        : now;
+
+      return now - createdAtTime < RETENTION_PERIOD;
+    });
+
+    await AsyncStorage.setItem(
+      "@mandar_weighbridge_ledger",
+      JSON.stringify(retainedTickets),
+    );
+
+    setTransactions(retainedTickets.filter((t) => t.shiftId === shiftId));
+  };
 
   // Load UI state array from local cache disk
   const loadCachedTickets = async () => {
@@ -251,6 +289,7 @@ export const LedgerProvider = ({ children }) => {
             "@mandar_sync_ops_queue",
             JSON.stringify(currentQueue),
           );
+
           await AsyncStorage.setItem(
             "@mandar_weighbridge_ledger",
             JSON.stringify(allTickets),
@@ -270,7 +309,10 @@ export const LedgerProvider = ({ children }) => {
         }
       }
 
-      setTransactions(allTickets.filter((t) => t.shiftId === shiftId));
+      console.log("Running ledger cleanup...");
+      console.log(allTickets);
+
+      await cleanupLedger();
     } catch (error) {
       console.error("❌ Master queue worker failure:", error.message);
     }
