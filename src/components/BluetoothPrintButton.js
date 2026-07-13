@@ -84,8 +84,8 @@ export default function BluetoothPrintButton({
     // Structural Ledger Details
     receipt += leftAlign;
     receipt += leftRight(
-      `No. : ${data?.receiptNumber || "N/A"}`,
-      `Date : ${
+      `No. : #${data?.receiptNumber || "N/A"}`,
+      `${
         data?.createdAt
           ? new Date(data.createdAt).toLocaleDateString("en-IN", {
               day: "2-digit",
@@ -95,11 +95,11 @@ export default function BluetoothPrintButton({
           : "N/A"
       }`,
     );
-    receipt += `Buyer   : ${data?.customerName || "N/A"}\n`;
-    receipt += `Site    : ${data?.site || ""}\n`;
-    receipt += `Mat.    : ${data?.materialName || "N/A"}\n`;
-    receipt += `Qty.    : ${data?.quantity || "N/A"}\n`;
-    receipt += `Time    : ${
+    receipt += `Buyer    : ${data?.customerName || "N/A"}\n`;
+    receipt += `Site     : ${data?.site || ""}\n`;
+    receipt += `Material : ${data?.materialName || "N/A"}\n`;
+    receipt += `Quantity : ${data?.quantity || "N/A"}\n`;
+    receipt += `Time     : ${
       data?.createdAt
         ? new Date(data.createdAt).toLocaleTimeString("en-IN", {
             hour: "2-digit",
@@ -109,7 +109,7 @@ export default function BluetoothPrintButton({
         : "N/A"
     }`;
     receipt += newline;
-    receipt += `Vehicle : ${data?.vehicleNumber || "N/A"}\n`;
+    receipt += `Vehicle  : ${data?.vehicleNumber || "N/A"}\n`;
     receipt += horizontalLine;
     receipt += fontB;
     // receipt += condensedOn;
@@ -367,8 +367,9 @@ export default function BluetoothPrintButton({
       {/* Bluetooth Device Management Control Panel Modal */}
       <Modal
         visible={deviceModalVisible}
-        animationType="slide"
-        transparent={true}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
       >
         <View style={styles.scannerOverlay}>
           <View style={styles.scannerContainer}>

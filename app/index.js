@@ -134,19 +134,11 @@ export default function WeighbridgeWizardScreen() {
               throw new Error("Cached data is empty.");
             }
           } else {
-            console.log(
-              "🚨 Zero local cache footprints found. Injecting bootstrap defaults.",
-            );
-            const bootstrapDefaults = [
-              { id: "1", name: "Crushed Stone (10mm)", icon: "🪨" },
-              { id: "2", name: "Crushed Stone (20mm)", icon: "🧱" },
-              { id: "3", name: "River Sand", icon: "⏳" },
-              { id: "4", name: "Stone Dust", icon: "💨" },
-            ];
+            console.warn("⚠️ Material cache not found.");
 
             if (isMounted) {
-              setMaterials(bootstrapDefaults);
-              setSelectedMaterial("1");
+              setMaterials([]);
+              setSelectedMaterial("");
             }
           }
         } catch (cacheError) {
@@ -168,6 +160,34 @@ export default function WeighbridgeWizardScreen() {
       isMounted = false;
     };
   }, []);
+
+  const refreshMaterials = async () => {
+    try {
+      setIsMaterialsLoading(true);
+
+      const { data } = await apiServices.materialList();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error("No materials returned.");
+      }
+
+      await AsyncStorage.setItem(STORAGE_CACHE_KEY, JSON.stringify(data));
+
+      setMaterials(data);
+      setSelectedMaterial(data[0].id || data[0].name);
+
+      Alert.alert("Success", "Material list refreshed successfully.");
+    } catch (err) {
+      console.error(err);
+
+      Alert.alert(
+        "Refresh Failed",
+        "Unable to fetch the latest material list. Please check your internet connection.",
+      );
+    } finally {
+      setIsMaterialsLoading(false);
+    }
+  };
 
   const handleKeypadPress = (val) => {
     const targetState = currentStep === 2 ? quantity : amount;
@@ -369,7 +389,7 @@ export default function WeighbridgeWizardScreen() {
             <TextInput
               ref={customerInputRef}
               style={styles.formInput}
-              // placeholder="e.g. Mandar Logistics"
+              placeholder="e.g. Mandar Logistics"
               placeholderTextColor="#94a3b8"
               value={customerName}
               onChangeText={setCustomerName}
@@ -412,12 +432,38 @@ export default function WeighbridgeWizardScreen() {
               onChangeText={setSite}
             />
             {/* Material */}
-            <MaterialDropdown
-              materials={materials}
-              selectedMaterial={selectedMaterial}
-              setSelectedMaterial={setSelectedMaterial}
-              isMaterialsLoading={isMaterialsLoading}
-            />
+            {isMaterialsLoading ? (
+              <MaterialDropdown
+                materials={materials}
+                selectedMaterial={selectedMaterial}
+                setSelectedMaterial={setSelectedMaterial}
+                isMaterialsLoading={true}
+              />
+            ) : materials.length > 0 ? (
+              <MaterialDropdown
+                materials={materials}
+                selectedMaterial={selectedMaterial}
+                setSelectedMaterial={setSelectedMaterial}
+                isMaterialsLoading={false}
+              />
+            ) : (
+              <View style={styles.emptyMaterialsContainer}>
+                <Text style={styles.emptyMaterialsTitle}>
+                  No material list found
+                </Text>
+
+                <Text style={styles.emptyMaterialsSubtitle}>
+                  Tap below to download the latest material list.
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.nextBtn}
+                  onPress={refreshMaterials}
+                >
+                  <Text style={styles.nextBtnText}>Refresh Materials</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             {/* Quantity */}
 
             {/* <Text style={styles.stepTitle}>Quantity</Text>
@@ -568,23 +614,106 @@ export default function WeighbridgeWizardScreen() {
 
       <Modal
         visible={printModalVisible}
-        transparent={true}
-        animationType="slide"
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={handleCloseAndClear}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>
-              {printStep === "customer"
-                ? "Print Customer Copy"
-                : "Print Plant Record"}
+              {printStep === "customer" ? "Customer Copy" : "Plant Copy"}
             </Text>
 
-            {/* <Text style={styles.modalSub}>
-              {printStep === "customer"
-                ? "Hand off this receipt copy to the truck transit driver."
-                : "File this copy into the inner plant weighbridge ledger box."}
-            </Text> */}
+            <View style={styles.ticketPreview}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                }}
+              >
+                <View style={styles.previewRow}>
+                  <Text style={{ ...styles.previewLabel, width: 30 }}>No.</Text>
+                  <Text style={{ marginRight: 8, color: "#64748B" }}>:</Text>
+                  <Text style={styles.previewValue}>
+                    #{finalTicketRecord?.receiptNumber}
+                  </Text>
+                </View>
+                <View style={styles.previewRow}>
+                  <Text style={styles.previewValue}>
+                    {finalTicketRecord?.createdAt
+                      ? new Date(finalTicketRecord.createdAt).toLocaleString(
+                          "en-IN",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          },
+                        )
+                      : "/"}
+                  </Text>
+                </View>
+              </View>
 
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>Buyer</Text>
+                <Text style={{ marginRight: 8, color: "#64748B" }}>:</Text>
+                <Text style={styles.previewValue}>
+                  {finalTicketRecord?.customerName}
+                </Text>
+              </View>
+
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>Site</Text>
+                <Text style={{ marginRight: 8, color: "#64748B" }}>:</Text>
+                <Text style={styles.previewValue}>
+                  {finalTicketRecord?.site}
+                </Text>
+              </View>
+
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>Material</Text>
+                <Text style={{ marginRight: 8, color: "#64748B" }}>:</Text>
+                <Text style={styles.previewValue}>
+                  {finalTicketRecord?.materialName}
+                </Text>
+              </View>
+
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>Quantity</Text>
+                <Text style={{ marginRight: 8, color: "#64748B" }}>:</Text>
+                <Text style={styles.previewValue}>
+                  {Number(finalTicketRecord?.quantity || 0).toLocaleString(
+                    "en-IN",
+                  )}{" "}
+                  MT
+                </Text>
+              </View>
+
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>Time</Text>
+                <Text style={{ marginRight: 8, color: "#64748B" }}>:</Text>
+                <Text style={styles.previewValue}>
+                  {finalTicketRecord?.createdAt
+                    ? new Date(finalTicketRecord.createdAt).toLocaleString(
+                        "en-IN",
+                        {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        },
+                      )
+                    : "-"}
+                </Text>
+              </View>
+
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>Vehicle</Text>
+                <Text style={{ marginRight: 8, color: "#64748B" }}>:</Text>
+                <Text style={styles.previewValue}>
+                  {finalTicketRecord?.vehicleNumber}
+                </Text>
+              </View>
+            </View>
             <BluetoothPrintButton
               title={printStep === "customer" ? "Customer Copy" : "Plant Copy"}
               transactionData={finalTicketRecord}
@@ -908,18 +1037,21 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContainer: {
-    width: "100%",
-    maxWidth: 340,
+    width: "88%",
+    maxWidth: 360,
     backgroundColor: "#FFFFFF",
-    // borderRadius: 16,
-    padding: 24,
+    paddingVertical: 28,
+    paddingHorizontal: 24,
     alignItems: "center",
-    // High-contrast shadow configuration for sleek depth elevation
+
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 12,
   },
   modalTitle: {
     fontSize: 20,
@@ -929,12 +1061,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   modalSub: {
-    fontSize: 14,
-    color: "#64748B", // Neutral cool grey for contextual help details
+    fontSize: 15,
+    color: "#64748B",
+    marginBottom: 28,
     textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 24,
-    paddingHorizontal: 10,
   },
   skipButton: {
     marginTop: 16,
@@ -961,6 +1091,50 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 18,
+  },
+  ticketPreview: {
+    width: "100%",
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingVertical: 16,
+    marginBottom: 24,
+  },
+
+  previewRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 2,
+  },
+
+  previewLabel: {
+    width: 60,
+    fontSize: 14,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+
+  flex: 1,
+  marginLeft: 20,
+  textAlign: "right",
+  emptyMaterialsContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+
+  emptyMaterialsTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+
+  emptyMaterialsSubtitle: {
+    marginTop: 8,
+    marginBottom: 24,
+    fontSize: 14,
+    color: "#64748b",
+    textAlign: "center",
   },
 });
 
