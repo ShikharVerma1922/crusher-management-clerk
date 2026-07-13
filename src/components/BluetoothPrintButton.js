@@ -72,13 +72,8 @@ export default function BluetoothPrintButton({
 
     // Header Setup
     receipt += centerAlign + boldOn + doubleSizeOn;
-    receipt += "DELIVERY CHALLAN" + newline;
+    receipt += "SLIP" + newline;
     receipt += doubleSizeOff + boldOff;
-    receipt += horizontalLine;
-
-    // Custom Copy Designation Title Prop
-    receipt +=
-      boldOn + `*** ${copyTitle.toUpperCase()} ***` + newline + boldOff;
     receipt += horizontalLine;
 
     // Structural Ledger Details
@@ -98,7 +93,7 @@ export default function BluetoothPrintButton({
     receipt += `Buyer    : ${data?.customerName || "N/A"}\n`;
     receipt += `Site     : ${data?.site || ""}\n`;
     receipt += `Material : ${data?.materialName || "N/A"}\n`;
-    receipt += `Quantity : ${data?.quantity || "N/A"}\n`;
+    receipt += `Quantity : ${data?.materialQuantity || "N/A"}\n`;
     receipt += `Time     : ${
       data?.createdAt
         ? new Date(data.createdAt).toLocaleTimeString("en-IN", {
@@ -110,17 +105,12 @@ export default function BluetoothPrintButton({
     }`;
     receipt += newline;
     receipt += `Vehicle  : ${data?.vehicleNumber || "N/A"}\n`;
+    receipt += `P. Mode  : ${(data?.paymentMode === CASH ? "CSH" : "CRD") || "N/A"}\n`;
+    if (data.hasRoyalty)
+      receipt += `Royalty  : ${data?.royaltyQuantity || "N/A"}\n`;
     receipt += horizontalLine;
-    receipt += fontB;
-    // receipt += condensedOn;
-    receipt +=
-      centerAlign + "Note: No quality guarantee after unloading." + newline;
-    // receipt += condensedOff;
-    receipt += fontA;
     receipt += newline;
-    receipt += leftRight("Driver Sign", "Plant Sign");
-    receipt += newline;
-    receipt += centerAlign + "Thank You! Drive Safely." + newline;
+    receipt += leftRight("D. S.", "P. S.");
     receipt += newline + newline + newline;
 
     return receipt;

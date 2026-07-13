@@ -69,12 +69,14 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
         </Text>
       </View>
 
-      <View style={styles.row}>
-        <Text style={styles.label}>Site:</Text>
-        <Text style={[styles.value, isVoided && styles.lineThrough]}>
-          {item.site || "N/A"}
-        </Text>
-      </View>
+      {item.site && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Site:</Text>
+          <Text style={[styles.value, isVoided && styles.lineThrough]}>
+            {item.site}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.row}>
         <Text style={styles.label}>Material:</Text>
@@ -82,13 +84,43 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
           {item.materialName || "N/A"}
         </Text>
       </View>
-
       <View style={styles.row}>
-        <Text style={styles.label}>Quantity:</Text>
+        <Text style={styles.label}>Material Qty:</Text>
         <Text style={[styles.value, isVoided && styles.lineThrough]}>
-          {item.materialQuanitity || "0"}
+          {item.materialQuantity || "0"}
         </Text>
       </View>
+      {item.materialRate && (
+        <>
+          <View style={styles.row}>
+            <Text style={styles.label}>Material Rate:</Text>
+            <Text style={[styles.value, isVoided && styles.lineThrough]}>
+              ₹{Number(item.materialRate).toLocaleString("en-IN")}/ft³
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Material Cost:</Text>
+            <Text style={[styles.value, isVoided && styles.lineThrough]}>
+              ₹
+              {Number(
+                Number(item.materialQuantity) * Number(item.materialRate),
+              ).toLocaleString("en-IN")}
+            </Text>
+          </View>
+          {item.hasRoyalty && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Royalty Booking:</Text>
+              <Text style={[styles.value, isVoided && styles.lineThrough]}>
+                ₹
+                {Number(
+                  Number(item.royaltyQuantity) * Number(item.royaltyRate),
+                ).toLocaleString("en-IN")}{" "}
+                ({item.royaltyQuantity} m³)
+              </Text>
+            </View>
+          )}
+        </>
+      )}
 
       <View style={styles.row}>
         <Text style={styles.label}>Payment Type:</Text>
@@ -96,16 +128,36 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
           {item.paymentMode || "CASH"}
         </Text>
       </View>
+      {item.paymentMode === "CASH" && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Amount Paid:</Text>
+          <Text
+            style={[styles.summaryVal, { fontWeight: "700", color: "#4338ca" }]}
+          >
+            ₹{Number(item.amountPaid).toLocaleString("en-IN")}
+          </Text>
+        </View>
+      )}
+      {!item.materialRate && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Rate Status:</Text>
+          <Text
+            style={[styles.summaryVal, { fontWeight: "600", color: "#119a11" }]}
+          >
+            OPEN
+          </Text>
+        </View>
+      )}
 
       <View style={styles.divider} />
 
       {/* FINANCIAL DATA TOTAL */}
-      <View style={styles.row}>
+      {/* <View style={styles.row}>
         <Text style={styles.boldText}>Total Amount:</Text>
         <Text style={styles.boldText}>
-          ₹{isVoided ? "0.00" : Number(item.grandTotal || 0).toFixed(2)}
+          ₹{isVoided ? "0.00" : Number(item. || 0).toFixed(2)}
         </Text>
-      </View>
+      </View> */}
 
       {/* VOID METADATA REASON */}
       {isVoided && item.voidReason && (

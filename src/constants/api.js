@@ -20,4 +20,7 @@ export const API_ENDPOINTS = {
   VOID_REQUEST: {
     POST_VOID_REQUEST: "/void-requests",
   },
+  CUSTOMER: {
+    GET_CUSTOMER_LIST: "/customers",
+  },
 };

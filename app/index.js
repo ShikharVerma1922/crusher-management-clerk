@@ -38,6 +38,7 @@ import {
   formatVehicleNumber,
   getVehicleKeyboardType,
 } from "../src/utils/weighBridgeHelpers.js";
+import CustomerSelectionField from "../src/components/CustomerSelectionField.jsx";
 
 export default function WeighbridgeWizardScreen() {
   const { clerk, shiftId } = useAuth();
@@ -54,11 +55,21 @@ export default function WeighbridgeWizardScreen() {
   const [selectedMaterial, setSelectedMaterial] = useState("");
   const [isMaterialsLoading, setIsMaterialsLoading] = useState(true);
 
+  const [customers, setCustomers] = useState([]);
+  const [filteredCustomers, setFilteredCustomers] = useState([]);
+  const [isCustomersLoading, setIsCustomersLoading] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
+  // States for adding a fresh customer directly on the fly
+  const [newCustomerModalVisible, setNewCustomerModalVisible] = useState(false);
+  const [newCustomerNameInput, setNewCustomerNameInput] = useState("");
+
   // Financial Parameters Input States (Initialized cleanly as strings for text fields)
   const [materialQuantity, setMaterialQuantity] = useState("");
   const [materialRate, setMaterialRate] = useState("");
   const [isRateSettled, setIsRateSettled] = useState(true);
-  const [paymentMode, setPaymentMode] = useState("CASH");
+  const [paymentMode, setPaymentMode] = useState("CREDIT");
   const [amountPaid, setAmountPaid] = useState("");
 
   // Royalty Control Modifiers
@@ -71,7 +82,8 @@ export default function WeighbridgeWizardScreen() {
 
   const [finalTicketRecord, setFinalTicketRecord] = useState({});
 
-  const STORAGE_CACHE_KEY = "@mandar_crusher_materials_cache";
+  const MATERIALS_CACHE_KEY = "@mandar_crusher_materials_cache";
+  const CUSTOMERS_CACHE_KEY = "@mandar_crusher_customers_cache";
 
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const vehicleInputRef = useRef(null);
@@ -106,75 +118,135 @@ export default function WeighbridgeWizardScreen() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadMaterials() {
-      try {
-        setIsMaterialsLoading(true);
+    async function initializeRegistryMatrices() {
+      // 1. Activate loading feedback tracks immediately
+      setIsMaterialsLoading(true);
+      setIsCustomersLoading(true);
 
-        console.log("📡 Reloading material registry from API on app launch...");
-        const { data } = await apiServices.materialList();
+      console.log(
+        "📡 Reloading material and customer registries from API on app launch...",
+      );
 
-        if (Array.isArray(data) && data.length > 0) {
-          await AsyncStorage.setItem(STORAGE_CACHE_KEY, JSON.stringify(data));
-
-          if (isMounted) {
-            setMaterials(data);
-            setSelectedMaterial(data[0].id || data[0].name);
-          }
-
-          console.log(
-            "💾 Material matrix refreshed and cached to local disk storage.",
-          );
-        } else {
-          throw new Error("Empty array payload returned from server.");
-        }
-      } catch (e) {
-        console.log(
-          "⚠️ API reload failed. Falling back to cached materials or defaults...",
-        );
-
-        try {
-          const cachedStringData =
-            await AsyncStorage.getItem(STORAGE_CACHE_KEY);
-
-          if (cachedStringData !== null) {
-            const parsedCacheArray = JSON.parse(cachedStringData);
-
-            if (
-              Array.isArray(parsedCacheArray) &&
-              parsedCacheArray.length > 0
-            ) {
-              if (isMounted) {
-                setMaterials(parsedCacheArray);
-                setSelectedMaterial(
-                  parsedCacheArray[0].id || parsedCacheArray[0].name,
-                );
-              }
-              console.log("✅ Recovered cached materials after API failure.");
-            } else {
-              throw new Error("Cached data is empty.");
-            }
-          } else {
-            console.warn("⚠️ Material cache not found.");
-
+      // --- ASYNC TASK 1: MATERIALS EXECUTION LOOP ---
+      const materialsPromise = apiServices
+        .materialList()
+        .then(async ({ data }) => {
+          if (Array.isArray(data) && data.length > 0) {
+            await AsyncStorage.setItem(
+              MATERIALS_CACHE_KEY,
+              JSON.stringify(data),
+            );
             if (isMounted) {
+              setMaterials(data);
+              setSelectedMaterial(data[0].id || data[0].name);
+            }
+            console.log(
+              "💾 Material matrix refreshed and cached to local disk storage.",
+            );
+          } else {
+            throw new Error(
+              "Empty array payload returned from materials server.",
+            );
+          }
+        })
+        .catch(async (e) => {
+          console.log(
+            "⚠️ Materials API reload failed. Falling back to cached materials...",
+            e.message,
+          );
+          try {
+            const cachedStringData =
+              await AsyncStorage.getItem(MATERIALS_CACHE_KEY);
+            if (cachedStringData !== null) {
+              const parsedCacheArray = JSON.parse(cachedStringData);
+              if (
+                Array.isArray(parsedCacheArray) &&
+                parsedCacheArray.length > 0
+              ) {
+                if (isMounted) {
+                  setMaterials(parsedCacheArray);
+                  setSelectedMaterial(
+                    parsedCacheArray[0].id || parsedCacheArray[0].name,
+                  );
+                }
+                console.log("✅ Recovered cached materials after API failure.");
+              }
+            } else if (isMounted) {
               setMaterials([]);
               setSelectedMaterial("");
             }
+          } catch (cacheError) {
+            console.error(
+              "Critical storage corruption reading material cache:",
+              cacheError,
+            );
           }
-        } catch (cacheError) {
-          console.error(
-            "Critical storage corruption reading cache:",
-            cacheError,
+        })
+        .finally(() => {
+          if (isMounted) setIsMaterialsLoading(false);
+        });
+
+      // --- ASYNC TASK 2: CUSTOMERS EXECUTION LOOP ---
+      const customersPromise = apiServices
+        .customerList()
+        .then(async ({ data }) => {
+          if (Array.isArray(data) && data.length > 0) {
+            await AsyncStorage.setItem(
+              CUSTOMERS_CACHE_KEY,
+              JSON.stringify(data),
+            );
+            if (isMounted) {
+              setCustomers(data);
+            }
+            console.log(
+              "💾 Customer profiles refreshed and cached to local disk storage.",
+            );
+          } else {
+            throw new Error(
+              "Empty array payload returned from customers server.",
+            );
+          }
+        })
+        .catch(async (e) => {
+          console.log(
+            "⚠️ Customer API reload failed. Falling back to cached customers...",
+            e.message,
           );
-        }
-      } finally {
-        if (isMounted) {
-          setIsMaterialsLoading(false);
-        }
-      }
+          try {
+            const cachedStringData =
+              await AsyncStorage.getItem(CUSTOMERS_CACHE_KEY);
+            if (cachedStringData !== null) {
+              const parsedCacheArray = JSON.parse(cachedStringData);
+              if (
+                Array.isArray(parsedCacheArray) &&
+                parsedCacheArray.length > 0
+              ) {
+                if (isMounted) {
+                  setCustomers(parsedCacheArray);
+                }
+                console.log(
+                  "✅ Recovered cached customer database records after API failure.",
+                );
+              }
+            } else if (isMounted) {
+              setCustomers([]);
+            }
+          } catch (cacheError) {
+            console.error(
+              "Critical storage corruption reading customer cache:",
+              cacheError,
+            );
+          }
+        })
+        .finally(() => {
+          if (isMounted) setIsCustomersLoading(false);
+        });
+
+      // Execute both network/disk requests concurrently in parallel background tracks
+      await Promise.allSettled([materialsPromise, customersPromise]);
     }
 
-    loadMaterials();
+    initializeRegistryMatrices();
 
     return () => {
       isMounted = false;
@@ -233,13 +305,13 @@ export default function WeighbridgeWizardScreen() {
       (m) => m.id === selectedMaterial || m.name === selectedMaterial,
     );
 
-    const { receiptNumber } = await generateTicketIdentities();
+    const { id, receiptNumber } = await generateTicketIdentities();
+    console.log("Receipt no,: ", receiptNumber, id);
 
-    const finalTicket = compileFinalTicketRecord({
+    const finalTicket = {
       shiftId,
       clerkId: clerk?.id,
       vehicleNumber: vehicleNumber.trim().toUpperCase(),
-      customerId,
       site,
       receiptNumber: String(receiptNumber),
       customerName: customerName.trim(),
@@ -252,10 +324,10 @@ export default function WeighbridgeWizardScreen() {
       amountPaid: Number(amountPaid),
       paymentMode,
       createdAt: new Date().toISOString(),
-      isRateSettled,
+      rateStatus: isRateSettled ? "SETTLED" : "OPEN",
       hasRoyalty,
       synced: false,
-    });
+    };
 
     setFinalTicketRecord(finalTicket);
     try {
@@ -274,11 +346,8 @@ export default function WeighbridgeWizardScreen() {
         ["1", "2", "3"],
         ["4", "5", "6"],
         ["7", "8", "9"],
-        [
-          { value: "CLEAR", icon: <Trash2 size={22} /> },
-          "0",
-          { value: "BACK", icon: <Delete size={22} /> },
-        ],
+        [".", "0", { value: "BACK", icon: <Delete size={22} /> }],
+        [{ value: "CLEAR", icon: <Trash2 size={22} /> }],
       ].map((row, rIdx) => (
         <View key={rIdx} style={styles.keypadRow}>
           {row.map((btn, cIdx) => {
@@ -288,7 +357,10 @@ export default function WeighbridgeWizardScreen() {
               <TouchableOpacity
                 key={`${rIdx}-${cIdx}`}
                 onPress={() => handleKeypadPress(isObject ? btn.value : btn)}
-                style={styles.keypadBtn}
+                style={[
+                  styles.keypadBtn,
+                  row.length === 1 && styles.keypadBtnWide,
+                ]}
               >
                 {isObject ? (
                   btn.icon
@@ -367,12 +439,13 @@ export default function WeighbridgeWizardScreen() {
 
   const handleCloseAndClear = () => {
     // 🗺️ Reset Navigation Steps to Start
+    setPrintModalVisible(false);
     setCurrentStep(0);
 
     setVehicleNumber("");
     setCustomerName("");
+    setCustomerSearchQuery("");
     setSite("");
-    setSelectedMaterial("");
 
     // 💰 Reset Scale & Financial Input Parameters (Clean String Resets)
     setMaterialQuantity("");
@@ -385,7 +458,7 @@ export default function WeighbridgeWizardScreen() {
     setRoyaltyRate("");
 
     // 💳 Reset Payment Processing Matrix
-    setPaymentMode("CASH");
+    setPaymentMode("CREDIT");
     setAmountPaid("");
     setGrandTotal(0);
 
@@ -401,7 +474,8 @@ export default function WeighbridgeWizardScreen() {
       setRoyaltyQuantity("0");
       setRoyaltyRate("0");
       setGrandTotal(0);
-      if (paymentMode === "CREDIT") setAmountPaid("0");
+      setPaymentMode("CREDIT");
+      setAmountPaid("0");
     } else {
       setMaterialRate("");
       setRoyaltyQuantity("");
@@ -547,21 +621,24 @@ export default function WeighbridgeWizardScreen() {
             {/* STEP 0: Identity Profile                                  */}
             {/* ========================================================= */}
             {currentStep === 0 && (
-              <View style={styles.stepWrapper}>
-                <Text style={styles.fieldLabel}>Customer Name</Text>
-                <TextInput
-                  ref={customerInputRef}
-                  style={styles.formInput}
-                  placeholder="e.g. Mandar Logistics"
-                  placeholderTextColor="#94a3b8"
-                  value={customerName}
-                  onChangeText={setCustomerName}
-                  onSubmitEditing={() => vehicleInputRef.current?.focus()}
-                  blurOnSubmit={false}
-                  returnKeyType="next"
+              <View style={[styles.stepWrapper, { zIndex: 50 }]}>
+                <CustomerSelectionField
+                  customerInputRef={customerInputRef}
+                  customerSearchQuery={customerSearchQuery}
+                  setCustomerSearchQuery={setCustomerSearchQuery}
+                  setCustomerName={setCustomerName}
+                  customers={customers}
+                  isCustomersLoading={isCustomersLoading}
+                  onAddNewPress={() => setNewCustomerModalVisible(true)}
+                  onCustomerSelected={(item) => {
+                    // Automatically snap focus to the next entry field when selected
+                    vehicleInputRef.current?.focus();
+                  }}
                 />
 
-                <Text style={styles.fieldLabel}>Vehicle Number</Text>
+                <Text style={[styles.fieldLabel, { marginTop: 16 }]}>
+                  Vehicle Number
+                </Text>
                 <TextInput
                   ref={vehicleInputRef}
                   style={styles.formInput}
@@ -1269,7 +1346,6 @@ export default function WeighbridgeWizardScreen() {
                   {Number(
                     finalTicketRecord?.materialQuantity || 0,
                   ).toLocaleString("en-IN")}{" "}
-                  MT
                 </Text>
               </View>
 
@@ -1460,6 +1536,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginHorizontal: 6,
+  },
+  keypadBtnWide: {
+    width: "100%",
   },
   keypadActionBtn: {
     backgroundColor: "#f8fafc",

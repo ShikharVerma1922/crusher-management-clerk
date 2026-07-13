@@ -107,88 +107,88 @@ export const validateFormStep = ({
  * Builds the comprehensive transactional record payload for offline/local logging.
  * Handles client-side UUID allocations for missing customer IDs automatically.
  */
-export const compileFinalTicketRecord = ({
-  shiftId,
-  clerkId,
-  vehicleNumber,
-  customerId,
-  customerName,
-  selectedMaterial,
-  materialsList,
-  site,
-  materialQuantity,
-  materialRate,
-  royaltyQuantity,
-  royaltyRate,
-  amountPaid,
-  paymentMode,
-  isRateSettled,
-  hasRoyalty,
-}) => {
-  const selectedMaterialObject = Array.isArray(materialsList)
-    ? materialsList.find(
-        (m) => m.id === selectedMaterial || m.name === selectedMaterial,
-      )
-    : null;
+// export const compileFinalTicketRecord = ({
+//   shiftId,
+//   clerkId,
+//   vehicleNumber,
+//   customerId,
+//   customerName,
+//   selectedMaterial,
+//   materialsList,
+//   site,
+//   materialQuantity,
+//   materialRate,
+//   royaltyQuantity,
+//   royaltyRate,
+//   amountPaid,
+//   paymentMode,
+//   isRateSettled,
+//   hasRoyalty,
+// }) => {
+//   const selectedMaterialObject = Array.isArray(materialsList)
+//     ? materialsList.find(
+//         (m) => m.id === selectedMaterial || m.name === selectedMaterial,
+//       )
+//     : null;
 
-  // 1. Resolve localized customer identities
-  let targetCustomerId = customerId;
-  let offlineCustomerPayload = null;
+//   // 1. Resolve localized customer identities
+//   let targetCustomerId = customerId;
+//   let offlineCustomerPayload = null;
 
-  if (!targetCustomerId) {
-    targetCustomerId = uuidv4(); // Safe client-generated UUID
-    offlineCustomerPayload = {
-      id: targetCustomerId,
-      name: customerName.trim(),
-      companyName: customerName.trim(),
-    };
-  }
+//   if (!targetCustomerId) {
+//     targetCustomerId = uuidv4(); // Safe client-generated UUID
+//     offlineCustomerPayload = {
+//       id: targetCustomerId,
+//       name: customerName.trim(),
+//       companyName: customerName.trim(),
+//     };
+//   }
 
-  // 2. Format localized pricing properties
-  const finalMatQty = Number(materialQuantity) || 0;
-  const finalMatRate = isRateSettled ? Number(materialRate) || 0 : 0;
-  const finalMatAmount = finalMatQty * finalMatRate;
+//   // 2. Format localized pricing properties
+//   const finalMatQty = Number(materialQuantity) || 0;
+//   const finalMatRate = isRateSettled ? Number(materialRate) || 0 : 0;
+//   const finalMatAmount = finalMatQty * finalMatRate;
 
-  const finalRoyQty =
-    isRateSettled && hasRoyalty ? Number(royaltyQuantity) || 0 : 0;
-  const finalRoyRate =
-    isRateSettled && hasRoyalty ? Number(royaltyRate) || 0 : 0;
-  const finalRoyAmount = finalRoyQty * finalRoyRate;
+//   const finalRoyQty =
+//     isRateSettled && hasRoyalty ? Number(royaltyQuantity) || 0 : 0;
+//   const finalRoyRate =
+//     isRateSettled && hasRoyalty ? Number(royaltyRate) || 0 : 0;
+//   const finalRoyAmount = finalRoyQty * finalRoyRate;
 
-  const finalGrandTotal = finalMatAmount + finalRoyAmount;
-  const finalAmountPaid = paymentMode === "CASH" ? Number(amountPaid) || 0 : 0;
-  const finalBalance = finalGrandTotal - finalAmountPaid;
+//   const finalGrandTotal = finalMatAmount + finalRoyAmount;
+//   const finalAmountPaid = paymentMode === "CASH" ? Number(amountPaid) || 0 : 0;
+//   const finalBalance = finalGrandTotal - finalAmountPaid;
 
-  return {
-    id: uuidv4(), // Transaction Entry Record UUID
-    shiftId,
-    clerkId,
-    vehicleNumber: vehicleNumber.trim().toUpperCase(),
-    customerId: targetCustomerId,
-    customerName: customerName.trim(),
-    materialId: selectedMaterialObject?.id || selectedMaterial,
-    materialName: selectedMaterialObject?.name || selectedMaterial,
-    site: site ? site.trim() : "",
+//   return {
+//     id: uuidv4(), // Transaction Entry Record UUID
+//     shiftId,
+//     clerkId,
+//     vehicleNumber: vehicleNumber.trim().toUpperCase(),
+//     customerId: targetCustomerId,
+//     customerName: customerName.trim(),
+//     materialId: selectedMaterialObject?.id || selectedMaterial,
+//     materialName: selectedMaterialObject?.name || selectedMaterial,
+//     site: site ? site.trim() : "",
 
-    materialQuantity: finalMatQty,
-    materialRate: finalMatRate,
-    materialAmount: finalMatAmount,
+//     materialQuantity: finalMatQty,
+//     materialRate: finalMatRate,
+//     materialAmount: finalMatAmount,
 
-    royaltyQuantity: finalRoyQty,
-    royaltyRate: finalRoyRate,
-    royaltyAmount: finalRoyAmount,
+//     royaltyQuantity: finalRoyQty,
+//     royaltyRate: finalRoyRate,
+//     royaltyAmount: finalRoyAmount,
 
-    grandTotal: finalGrandTotal,
-    paymentMode,
-    amountPaid: finalAmountPaid,
-    balance: finalBalance,
+//     grandTotal: finalGrandTotal,
+//     paymentMode,
+//     amountPaid: finalAmountPaid,
+//     balance: finalBalance,
 
-    rateStatus: isRateSettled ? "SETTLED" : "OPEN",
-    createdAt: new Date().toISOString(),
-    isSynced: false,
-    newOfflineCustomer: offlineCustomerPayload,
-  };
-};
+//     rateStatus: isRateSettled ? "SETTLED" : "OPEN",
+//     createdAt: new Date().toISOString(),
+//     isSynced: false,
+//     newOfflineCustomer: offlineCustomerPayload,
+//   };
+// };
 
 /**
  * Handles keyboard input filtering mechanics for Vehicle Strings.

@@ -310,7 +310,7 @@ export const LedgerProvider = ({ children }) => {
       }
 
       console.log("Running ledger cleanup...");
-      console.log(allTickets);
+      // console.log(allTickets);
 
       await cleanupLedger();
     } catch (error) {
