@@ -86,14 +86,14 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
       <View style={styles.row}>
         <Text style={styles.label}>Quantity:</Text>
         <Text style={[styles.value, isVoided && styles.lineThrough]}>
-          {item.quantity || "0"}
+          {item.materialQuanitity || "0"}
         </Text>
       </View>
 
       <View style={styles.row}>
         <Text style={styles.label}>Payment Type:</Text>
         <Text style={[styles.value, isVoided && styles.lineThrough]}>
-          {item.paymentType || "CASH"}
+          {item.paymentMode || "CASH"}
         </Text>
       </View>
 
@@ -103,7 +103,7 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
       <View style={styles.row}>
         <Text style={styles.boldText}>Total Amount:</Text>
         <Text style={styles.boldText}>
-          ₹{isVoided ? "0.00" : Number(item.totalAmount || 0).toFixed(2)}
+          ₹{isVoided ? "0.00" : Number(item.grandTotal || 0).toFixed(2)}
         </Text>
       </View>
 
