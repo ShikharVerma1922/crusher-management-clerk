@@ -11,8 +11,8 @@ import {
 } from "react-native";
 import { useLedger } from "../src/context/LedgerContext.js";
 import { useAuth } from "../src/context/AuthContext.js";
-import { TicketCard } from "../src/components/ReceiptCardItem.js";
-import BluetoothPrintButton from "../src/components/BluetoothPrintButton.js";
+import { TicketCard } from "../src/components/ReceiptCardItem.jsx";
+import BluetoothPrintButton from "../src/components/BluetoothPrintButton.jsx";
 import {
   Box,
   Boxes,

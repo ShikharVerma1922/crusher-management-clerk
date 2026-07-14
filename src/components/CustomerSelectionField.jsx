@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { RefreshCcw } from "lucide-react-native";
 import {
   Text,
   View,
@@ -15,6 +16,7 @@ export default function CustomerSelectionField({
   setCustomerName,
   customers,
   isCustomersLoading,
+  onRefreshCustomers,
   onCustomerSelected,
 }) {
   const [filteredCustomers, setFilteredCustomers] = useState([]);
@@ -53,32 +55,44 @@ export default function CustomerSelectionField({
 
   return (
     <View style={styles.fieldContainer}>
-      <Text style={styles.fieldLabel}>Customer Name</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.fieldLabel}>Customer Name</Text>
+      </View>
 
       <View style={styles.inputAnchor}>
-        <TextInput
-          ref={customerInputRef}
-          style={styles.formInput}
-          placeholder={
-            isCustomersLoading
-              ? "Loading client index..."
-              : "Type customer name..."
-          }
-          placeholderTextColor="#94a3b8"
-          value={customerSearchQuery}
-          onChangeText={handleSearch}
-          onFocus={() => {
-            if (
-              customerSearchQuery.trim().length > 0 &&
-              filteredCustomers.length > 0
-            ) {
-              setShowDropdown(true);
+        <View style={styles.inputRow}>
+          <TextInput
+            ref={customerInputRef}
+            style={styles.formInput}
+            placeholder={
+              isCustomersLoading
+                ? "Loading client index..."
+                : "Type customer name..."
             }
-          }}
-          blurOnSubmit={false}
-          returnKeyType="next"
-          editable={!isCustomersLoading}
-        />
+            placeholderTextColor="#94a3b8"
+            value={customerSearchQuery}
+            onChangeText={handleSearch}
+            onFocus={() => {
+              if (
+                customerSearchQuery.trim().length > 0 &&
+                filteredCustomers.length > 0
+              ) {
+                setShowDropdown(true);
+              }
+            }}
+            blurOnSubmit={false}
+            returnKeyType="next"
+            editable={!isCustomersLoading}
+          />
+
+          <TouchableOpacity
+            onPress={onRefreshCustomers}
+            style={styles.refreshButtonInline}
+            activeOpacity={0.4}
+          >
+            <RefreshCcw size={20} color={"gray"} />
+          </TouchableOpacity>
+        </View>
 
         {/* Floating Dropdown Results Menu */}
         {showDropdown && (
@@ -106,16 +120,32 @@ export default function CustomerSelectionField({
 }
 
 const styles = StyleSheet.create({
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "flex-start",
+    gap: 10,
+    marginBottom: 4,
+  },
+  refreshButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  refreshButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#2563eb",
+  },
   fieldLabel: {
     fontSize: 10,
     fontWeight: "700",
     color: "#64748b",
     textTransform: "uppercase",
     letterSpacing: 1,
-    marginBottom: 4,
+    // marginBottom: 4, // Removed, now handled by labelRow
   },
   formInput: {
-    width: "100%",
+    flex: 1,
     backgroundColor: "transparent",
     borderBottomWidth: 1.5,
     borderColor: "#cbd5e1", // Elegant bottom-border layout only
@@ -154,4 +184,19 @@ const styles = StyleSheet.create({
     borderBottomColor: "#f1f5f9",
   },
   dropdownText: { fontSize: 14, fontWeight: "500", color: "#334155" },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  refreshButtonInline: {
+    backgroundColor: "transparent",
+    borderBottomWidth: 1.5,
+    borderColor: "#cbd5e1", // Elegant bottom-border layout only
+    fontSize: 20,
+    color: "#0f172a",
+    fontWeight: "700",
+    paddingVertical: 11.5,
+    paddingHorizontal: 2,
+    marginBottom: 32,
+  },
 });

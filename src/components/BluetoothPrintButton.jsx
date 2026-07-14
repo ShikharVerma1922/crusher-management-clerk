@@ -72,7 +72,7 @@ export default function BluetoothPrintButton({
 
     // Header Setup
     receipt += centerAlign + boldOn + doubleSizeOn;
-    receipt += "SLIP" + newline;
+    receipt += "TICKET" + newline;
     receipt += doubleSizeOff + boldOff;
     receipt += horizontalLine;
 
@@ -91,7 +91,7 @@ export default function BluetoothPrintButton({
       }`,
     );
     receipt += `Buyer    : ${data?.customerName || "N/A"}\n`;
-    receipt += `Site     : ${data?.site || ""}\n`;
+    if (data.site) receipt += `Site     : ${data?.site || "N/A"}\n`;
     receipt += `Material : ${data?.materialName || "N/A"}\n`;
     receipt += `Quantity : ${data?.materialQuantity || "N/A"}\n`;
     receipt += `Time     : ${
@@ -105,11 +105,11 @@ export default function BluetoothPrintButton({
     }`;
     receipt += newline;
     receipt += `Vehicle  : ${data?.vehicleNumber || "N/A"}\n`;
-    receipt += `P. Mode  : ${(data?.paymentMode === CASH ? "CSH" : "CRD") || "N/A"}\n`;
+    receipt += `P.Mode   : ${(data?.paymentMode === "CASH" ? "CSH" : "CRD") || "N/A"}\n`;
     if (data.hasRoyalty)
-      receipt += `Royalty  : ${data?.royaltyQuantity || "N/A"}\n`;
+      receipt += `R.MR     : ${data?.royaltyQuantity || "N/A"}\n`;
     receipt += horizontalLine;
-    receipt += newline;
+    receipt += newline + newline;
     receipt += leftRight("D. S.", "P. S.");
     receipt += newline + newline + newline;
 

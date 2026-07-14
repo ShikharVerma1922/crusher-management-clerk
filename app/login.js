@@ -75,7 +75,11 @@ export default function LoginScreen() {
       />
 
       <TouchableOpacity
-        style={[styles.loginBtn, isLoggingIn && styles.disabledBtn]}
+        style={[
+          styles.loginBtn,
+          isLoggingIn && styles.disabledBtn,
+          { marginBottom: 80 },
+        ]}
         onPress={handlePressLogin}
         disabled={isLoggingIn}
       >
@@ -96,6 +100,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
+    // marginBottom: 50,
   },
   title: { fontSize: 22, fontWeight: "900", color: "#f8fafc", marginBottom: 6 },
   subtitle: {

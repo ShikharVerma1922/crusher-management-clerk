@@ -12,7 +12,6 @@ import BluetoothPrintButton from "./BluetoothPrintButton";
 
 export const TicketCard = ({ item, onVoidTrigger }) => {
   const isVoided = item.isVoid === true;
-
   return (
     <View style={[styles.cardContainer, isVoided && styles.voidedCard]}>
       {/* HEADER SECTION */}
@@ -87,11 +86,11 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
       <View style={styles.row}>
         <Text style={styles.label}>Material Qty:</Text>
         <Text style={[styles.value, isVoided && styles.lineThrough]}>
-          {item.materialQuantity || "0"}
+          {item.materialQuantity || "0"} ft³
         </Text>
       </View>
-      {item.materialRate && (
-        <>
+      {item.materialRate > 0 && (
+        <View>
           <View style={styles.row}>
             <Text style={styles.label}>Material Rate:</Text>
             <Text style={[styles.value, isVoided && styles.lineThrough]}>
@@ -119,7 +118,7 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
               </Text>
             </View>
           )}
-        </>
+        </View>
       )}
 
       <View style={styles.row}>
@@ -132,7 +131,11 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
         <View style={styles.row}>
           <Text style={styles.label}>Amount Paid:</Text>
           <Text
-            style={[styles.summaryVal, { fontWeight: "700", color: "#4338ca" }]}
+            style={[
+              styles.summaryVal,
+              { fontWeight: "700", color: "#4338ca" },
+              isVoided && styles.lineThrough,
+            ]}
           >
             ₹{Number(item.amountPaid).toLocaleString("en-IN")}
           </Text>
@@ -141,9 +144,7 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
       {!item.materialRate && (
         <View style={styles.row}>
           <Text style={styles.label}>Rate Status:</Text>
-          <Text
-            style={[styles.summaryVal, { fontWeight: "600", color: "#119a11" }]}
-          >
+          <Text style={[styles.value, isVoided && styles.lineThrough]}>
             OPEN
           </Text>
         </View>

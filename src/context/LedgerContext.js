@@ -3,9 +3,9 @@ import React, { createContext, useState, useEffect, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Network from "expo-network";
 import { AuthContext } from "./AuthContext";
-import apiClient from "../services/apiClient";
-import { generateTicketIdentities } from "../utils/idGenerator";
-import { apiServices } from "../services/apiServices";
+import apiClient from "../services/apiClient.js";
+import { generateTicketIdentities } from "../utils/idGenerator.js";
+import { apiServices } from "../services/apiServices.js";
 
 export const LedgerContext = createContext(null);
 
@@ -118,8 +118,6 @@ export const LedgerProvider = ({ children }) => {
     try {
       const ticketSchema = {
         ...newTicket,
-        isVoid: false,
-        voidReason: null,
         dbId: null,
       };
 
@@ -170,8 +168,12 @@ export const LedgerProvider = ({ children }) => {
       if (!existingData) return;
       const allTickets = JSON.parse(existingData);
       const idx = allTickets.findIndex((t) => t.id === ticketId);
-
+      console.log(allTickets);
+      console.log(idx);
+      console.log(ticketId);
+      console.log("test1");
       if (idx !== -1) {
+        console.log("test2");
         allTickets[idx].isVoid = true;
         allTickets[idx].voidReason = reason;
         await AsyncStorage.setItem(

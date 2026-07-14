@@ -15,13 +15,13 @@ import {
   Modal,
   Switch,
 } from "react-native";
-import { useAuth } from "../src/context/AuthContext";
-import { useLedger } from "../src/context/LedgerContext";
-import apiClient from "../src/services/apiClient";
+import { useAuth } from "../src/context/AuthContext.js";
+import { useLedger } from "../src/context/LedgerContext.js";
+import apiClient from "../src/services/apiClient.js";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import MaterialDropdown from "../src/components/MaterialDropdown";
-import { generateTicketIdentities } from "../src/utils/idGenerator";
-import { apiServices } from "../src/services/apiServices";
+import MaterialDropdown from "../src/components/MaterialDropdown.jsx";
+import { generateTicketIdentities } from "../src/utils/idGenerator.js";
+import { apiServices } from "../src/services/apiServices.js";
 import {
   ArrowBigLeft,
   ArrowBigRight,
@@ -115,138 +115,260 @@ export default function WeighbridgeWizardScreen() {
     };
   }, []);
 
+  async function initializeRegistryMatrices(isMounted) {
+    // 1. Activate loading feedback tracks immediately
+    setIsMaterialsLoading(true);
+    setIsCustomersLoading(true);
+
+    console.log(
+      "📡 Reloading material and customer registries from API on app launch...",
+    );
+
+    // --- ASYNC TASK 1: MATERIALS EXECUTION LOOP ---
+    const materialsPromise = apiServices
+      .materialList()
+      .then(async ({ data }) => {
+        if (Array.isArray(data) && data.length > 0) {
+          await AsyncStorage.setItem(MATERIALS_CACHE_KEY, JSON.stringify(data));
+          if (isMounted) {
+            setMaterials(data);
+            setSelectedMaterial(data[0].id || data[0].name);
+          }
+          console.log(
+            "💾 Material matrix refreshed and cached to local disk storage.",
+          );
+        } else {
+          throw new Error(
+            "Empty array payload returned from materials server.",
+          );
+        }
+      })
+      .catch(async (e) => {
+        console.log(
+          "⚠️ Materials API reload failed. Falling back to cached materials...",
+          e.message,
+        );
+        try {
+          const cachedStringData =
+            await AsyncStorage.getItem(MATERIALS_CACHE_KEY);
+          if (cachedStringData !== null) {
+            const parsedCacheArray = JSON.parse(cachedStringData);
+            if (
+              Array.isArray(parsedCacheArray) &&
+              parsedCacheArray.length > 0
+            ) {
+              if (isMounted) {
+                setMaterials(parsedCacheArray);
+                setSelectedMaterial(
+                  parsedCacheArray[0].id || parsedCacheArray[0].name,
+                );
+              }
+              console.log("✅ Recovered cached materials after API failure.");
+            }
+          } else if (isMounted) {
+            setMaterials([]);
+            setSelectedMaterial("");
+          }
+        } catch (cacheError) {
+          console.error(
+            "Critical storage corruption reading material cache:",
+            cacheError,
+          );
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsMaterialsLoading(false);
+      });
+
+    // --- ASYNC TASK 2: CUSTOMERS EXECUTION LOOP ---
+    const customersPromise = apiServices
+      .customerList()
+      .then(async ({ data }) => {
+        if (Array.isArray(data) && data.length > 0) {
+          await AsyncStorage.setItem(CUSTOMERS_CACHE_KEY, JSON.stringify(data));
+          if (isMounted) {
+            setCustomers(data);
+          }
+          console.log(
+            "💾 Customer profiles refreshed and cached to local disk storage.",
+          );
+        } else {
+          throw new Error(
+            "Empty array payload returned from customers server.",
+          );
+        }
+      })
+      .catch(async (e) => {
+        console.log(
+          "⚠️ Customer API reload failed. Falling back to cached customers...",
+          e.message,
+        );
+        try {
+          const cachedStringData =
+            await AsyncStorage.getItem(CUSTOMERS_CACHE_KEY);
+          if (cachedStringData !== null) {
+            const parsedCacheArray = JSON.parse(cachedStringData);
+            if (
+              Array.isArray(parsedCacheArray) &&
+              parsedCacheArray.length > 0
+            ) {
+              if (isMounted) {
+                setCustomers(parsedCacheArray);
+              }
+              console.log(
+                "✅ Recovered cached customer database records after API failure.",
+              );
+            }
+          } else if (isMounted) {
+            setCustomers([]);
+          }
+        } catch (cacheError) {
+          console.error(
+            "Critical storage corruption reading customer cache:",
+            cacheError,
+          );
+        }
+      })
+      .finally(() => {
+        if (isMounted) setIsCustomersLoading(false);
+      });
+
+    // Execute both network/disk requests concurrently in parallel background tracks
+    await Promise.allSettled([materialsPromise, customersPromise]);
+  }
+
   useEffect(() => {
     let isMounted = true;
 
-    async function initializeRegistryMatrices() {
-      // 1. Activate loading feedback tracks immediately
-      setIsMaterialsLoading(true);
-      setIsCustomersLoading(true);
+    // async function initializeRegistryMatrices() {
+    //   // 1. Activate loading feedback tracks immediately
+    //   setIsMaterialsLoading(true);
+    //   setIsCustomersLoading(true);
 
-      console.log(
-        "📡 Reloading material and customer registries from API on app launch...",
-      );
+    //   console.log(
+    //     "📡 Reloading material and customer registries from API on app launch...",
+    //   );
 
-      // --- ASYNC TASK 1: MATERIALS EXECUTION LOOP ---
-      const materialsPromise = apiServices
-        .materialList()
-        .then(async ({ data }) => {
-          if (Array.isArray(data) && data.length > 0) {
-            await AsyncStorage.setItem(
-              MATERIALS_CACHE_KEY,
-              JSON.stringify(data),
-            );
-            if (isMounted) {
-              setMaterials(data);
-              setSelectedMaterial(data[0].id || data[0].name);
-            }
-            console.log(
-              "💾 Material matrix refreshed and cached to local disk storage.",
-            );
-          } else {
-            throw new Error(
-              "Empty array payload returned from materials server.",
-            );
-          }
-        })
-        .catch(async (e) => {
-          console.log(
-            "⚠️ Materials API reload failed. Falling back to cached materials...",
-            e.message,
-          );
-          try {
-            const cachedStringData =
-              await AsyncStorage.getItem(MATERIALS_CACHE_KEY);
-            if (cachedStringData !== null) {
-              const parsedCacheArray = JSON.parse(cachedStringData);
-              if (
-                Array.isArray(parsedCacheArray) &&
-                parsedCacheArray.length > 0
-              ) {
-                if (isMounted) {
-                  setMaterials(parsedCacheArray);
-                  setSelectedMaterial(
-                    parsedCacheArray[0].id || parsedCacheArray[0].name,
-                  );
-                }
-                console.log("✅ Recovered cached materials after API failure.");
-              }
-            } else if (isMounted) {
-              setMaterials([]);
-              setSelectedMaterial("");
-            }
-          } catch (cacheError) {
-            console.error(
-              "Critical storage corruption reading material cache:",
-              cacheError,
-            );
-          }
-        })
-        .finally(() => {
-          if (isMounted) setIsMaterialsLoading(false);
-        });
+    //   // --- ASYNC TASK 1: MATERIALS EXECUTION LOOP ---
+    //   const materialsPromise = apiServices
+    //     .materialList()
+    //     .then(async ({ data }) => {
+    //       if (Array.isArray(data) && data.length > 0) {
+    //         await AsyncStorage.setItem(
+    //           MATERIALS_CACHE_KEY,
+    //           JSON.stringify(data),
+    //         );
+    //         if (isMounted) {
+    //           setMaterials(data);
+    //           setSelectedMaterial(data[0].id || data[0].name);
+    //         }
+    //         console.log(
+    //           "💾 Material matrix refreshed and cached to local disk storage.",
+    //         );
+    //       } else {
+    //         throw new Error(
+    //           "Empty array payload returned from materials server.",
+    //         );
+    //       }
+    //     })
+    //     .catch(async (e) => {
+    //       console.log(
+    //         "⚠️ Materials API reload failed. Falling back to cached materials...",
+    //         e.message,
+    //       );
+    //       try {
+    //         const cachedStringData =
+    //           await AsyncStorage.getItem(MATERIALS_CACHE_KEY);
+    //         if (cachedStringData !== null) {
+    //           const parsedCacheArray = JSON.parse(cachedStringData);
+    //           if (
+    //             Array.isArray(parsedCacheArray) &&
+    //             parsedCacheArray.length > 0
+    //           ) {
+    //             if (isMounted) {
+    //               setMaterials(parsedCacheArray);
+    //               setSelectedMaterial(
+    //                 parsedCacheArray[0].id || parsedCacheArray[0].name,
+    //               );
+    //             }
+    //             console.log("✅ Recovered cached materials after API failure.");
+    //           }
+    //         } else if (isMounted) {
+    //           setMaterials([]);
+    //           setSelectedMaterial("");
+    //         }
+    //       } catch (cacheError) {
+    //         console.error(
+    //           "Critical storage corruption reading material cache:",
+    //           cacheError,
+    //         );
+    //       }
+    //     })
+    //     .finally(() => {
+    //       if (isMounted) setIsMaterialsLoading(false);
+    //     });
 
-      // --- ASYNC TASK 2: CUSTOMERS EXECUTION LOOP ---
-      const customersPromise = apiServices
-        .customerList()
-        .then(async ({ data }) => {
-          if (Array.isArray(data) && data.length > 0) {
-            await AsyncStorage.setItem(
-              CUSTOMERS_CACHE_KEY,
-              JSON.stringify(data),
-            );
-            if (isMounted) {
-              setCustomers(data);
-            }
-            console.log(
-              "💾 Customer profiles refreshed and cached to local disk storage.",
-            );
-          } else {
-            throw new Error(
-              "Empty array payload returned from customers server.",
-            );
-          }
-        })
-        .catch(async (e) => {
-          console.log(
-            "⚠️ Customer API reload failed. Falling back to cached customers...",
-            e.message,
-          );
-          try {
-            const cachedStringData =
-              await AsyncStorage.getItem(CUSTOMERS_CACHE_KEY);
-            if (cachedStringData !== null) {
-              const parsedCacheArray = JSON.parse(cachedStringData);
-              if (
-                Array.isArray(parsedCacheArray) &&
-                parsedCacheArray.length > 0
-              ) {
-                if (isMounted) {
-                  setCustomers(parsedCacheArray);
-                }
-                console.log(
-                  "✅ Recovered cached customer database records after API failure.",
-                );
-              }
-            } else if (isMounted) {
-              setCustomers([]);
-            }
-          } catch (cacheError) {
-            console.error(
-              "Critical storage corruption reading customer cache:",
-              cacheError,
-            );
-          }
-        })
-        .finally(() => {
-          if (isMounted) setIsCustomersLoading(false);
-        });
+    //   // --- ASYNC TASK 2: CUSTOMERS EXECUTION LOOP ---
+    //   const customersPromise = apiServices
+    //     .customerList()
+    //     .then(async ({ data }) => {
+    //       if (Array.isArray(data) && data.length > 0) {
+    //         await AsyncStorage.setItem(
+    //           CUSTOMERS_CACHE_KEY,
+    //           JSON.stringify(data),
+    //         );
+    //         if (isMounted) {
+    //           setCustomers(data);
+    //         }
+    //         console.log(
+    //           "💾 Customer profiles refreshed and cached to local disk storage.",
+    //         );
+    //       } else {
+    //         throw new Error(
+    //           "Empty array payload returned from customers server.",
+    //         );
+    //       }
+    //     })
+    //     .catch(async (e) => {
+    //       console.log(
+    //         "⚠️ Customer API reload failed. Falling back to cached customers...",
+    //         e.message,
+    //       );
+    //       try {
+    //         const cachedStringData =
+    //           await AsyncStorage.getItem(CUSTOMERS_CACHE_KEY);
+    //         if (cachedStringData !== null) {
+    //           const parsedCacheArray = JSON.parse(cachedStringData);
+    //           if (
+    //             Array.isArray(parsedCacheArray) &&
+    //             parsedCacheArray.length > 0
+    //           ) {
+    //             if (isMounted) {
+    //               setCustomers(parsedCacheArray);
+    //             }
+    //             console.log(
+    //               "✅ Recovered cached customer database records after API failure.",
+    //             );
+    //           }
+    //         } else if (isMounted) {
+    //           setCustomers([]);
+    //         }
+    //       } catch (cacheError) {
+    //         console.error(
+    //           "Critical storage corruption reading customer cache:",
+    //           cacheError,
+    //         );
+    //       }
+    //     })
+    //     .finally(() => {
+    //       if (isMounted) setIsCustomersLoading(false);
+    //     });
 
-      // Execute both network/disk requests concurrently in parallel background tracks
-      await Promise.allSettled([materialsPromise, customersPromise]);
-    }
+    //   // Execute both network/disk requests concurrently in parallel background tracks
+    //   await Promise.allSettled([materialsPromise, customersPromise]);
+    // }
 
-    initializeRegistryMatrices();
+    initializeRegistryMatrices(isMounted);
 
     return () => {
       isMounted = false;
@@ -309,6 +431,7 @@ export default function WeighbridgeWizardScreen() {
     console.log("Receipt no,: ", receiptNumber, id);
 
     const finalTicket = {
+      id,
       shiftId,
       clerkId: clerk?.id,
       vehicleNumber: vehicleNumber.trim().toUpperCase(),
@@ -327,6 +450,8 @@ export default function WeighbridgeWizardScreen() {
       rateStatus: isRateSettled ? "SETTLED" : "OPEN",
       hasRoyalty,
       synced: false,
+      isVoid: false,
+      voidReason: null,
     };
 
     setFinalTicketRecord(finalTicket);
@@ -347,7 +472,7 @@ export default function WeighbridgeWizardScreen() {
         ["4", "5", "6"],
         ["7", "8", "9"],
         [".", "0", { value: "BACK", icon: <Delete size={22} /> }],
-        [{ value: "CLEAR", icon: <Trash2 size={22} /> }],
+        // [{ value: "CLEAR", icon: <Trash2 size={22} /> }],
       ].map((row, rIdx) => (
         <View key={rIdx} style={styles.keypadRow}>
           {row.map((btn, cIdx) => {
@@ -629,6 +754,7 @@ export default function WeighbridgeWizardScreen() {
                   setCustomerName={setCustomerName}
                   customers={customers}
                   isCustomersLoading={isCustomersLoading}
+                  onRefreshCustomers={initializeRegistryMatrices}
                   onAddNewPress={() => setNewCustomerModalVisible(true)}
                   onCustomerSelected={(item) => {
                     // Automatically snap focus to the next entry field when selected
@@ -697,7 +823,7 @@ export default function WeighbridgeWizardScreen() {
                     </Text>
                     <TouchableOpacity
                       style={styles.nextBtn}
-                      onPress={refreshMaterials}
+                      onPress={initializeRegistryMatrices}
                     >
                       <Text style={styles.nextBtnText}>Refresh Materials</Text>
                     </TouchableOpacity>
@@ -777,8 +903,8 @@ export default function WeighbridgeWizardScreen() {
                     }
                   >
                     {isRateSettled
-                      ? "✓ You will be prompted to enter the rate per ton on the next screen."
-                      : "⚠ Rate status will lock to OPEN. Pricing logic will be assigned by the admin panel later."}
+                      ? "✓ Enter the rate on the next screen."
+                      : "⚠ Rate status will lock to OPEN."}
                   </Text>
                 </View>
               </View>
@@ -1266,7 +1392,7 @@ export default function WeighbridgeWizardScreen() {
               onPress={handleFinalCommit}
             >
               <SaveCheck color={"#ffffff"} size={20} />
-              <Text style={styles.commitBtnText}> Save & Print</Text>
+              <Text style={styles.commitBtnText}>Save</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1323,13 +1449,15 @@ export default function WeighbridgeWizardScreen() {
                 </Text>
               </View>
 
-              <View style={styles.previewRow}>
-                <Text style={styles.previewLabel}>Site</Text>
-                <Text style={{ marginRight: 8, color: "#64748B" }}>:</Text>
-                <Text style={styles.previewValue}>
-                  {finalTicketRecord?.site}
-                </Text>
-              </View>
+              {finalTicketRecord.site && (
+                <View style={styles.previewRow}>
+                  <Text style={styles.previewLabel}>Site</Text>
+                  <Text style={{ marginRight: 8, color: "#64748B" }}>:</Text>
+                  <Text style={styles.previewValue}>
+                    {finalTicketRecord?.site}
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.previewRow}>
                 <Text style={styles.previewLabel}>Material</Text>
@@ -1372,6 +1500,23 @@ export default function WeighbridgeWizardScreen() {
                   {finalTicketRecord?.vehicleNumber}
                 </Text>
               </View>
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>P. Mode</Text>
+                <Text style={{ marginRight: 8, color: "#64748B" }}>:</Text>
+                <Text style={styles.previewValue}>
+                  {finalTicketRecord?.paymentMode === "CASH" ? "CSH" : "CRD"}
+                </Text>
+              </View>
+
+              {finalTicketRecord.hasRoyalty && (
+                <View style={styles.previewRow}>
+                  <Text style={styles.previewLabel}>Royalty</Text>
+                  <Text style={{ marginRight: 8, color: "#64748B" }}>:</Text>
+                  <Text style={styles.previewValue}>
+                    {finalTicketRecord?.royaltyQuantity}
+                  </Text>
+                </View>
+              )}
             </View>
             <BluetoothPrintButton
               title={printStep === "customer" ? "Customer Copy" : "Plant Copy"}
@@ -1429,7 +1574,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: "#ffffff",
     justifyContent: "space-between",
-    paddingBottom: 20,
+    paddingBottom: 10,
   },
   stepWrapper: {
     flex: 1,
@@ -1438,9 +1583,9 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#0f172a",
+    color: "#64748b",
     letterSpacing: -0.5,
-    marginBottom: 36,
+    marginBottom: 20,
   },
 
   // PREMIUM UNDERLINE INPUT ARCHITECTURE
@@ -1509,7 +1654,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
     textAlign: "left",
     paddingHorizontal: 12,
-    marginBottom: 20,
+    marginBottom: 10,
   },
 
   smallUnitDisplay: {
@@ -1580,7 +1725,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 24,
+    paddingTop: 2,
     marginTop: 16,
   },
   backBtn: {
@@ -1809,7 +1954,7 @@ const styles = StyleSheet.create({
     // borderWidth: 1,
     // borderColor: "#e2e8f0",
     flexDirection: "row",
-    paddingVertical: 20,
+    paddingVertical: 2,
     paddingHorizontal: 16,
     alignItems: "baseline",
     justifyContent: "flex-start",
@@ -1855,7 +2000,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 4,
-    marginBottom: 12,
+    marginBottom: 1,
   },
   liveSubtotalLabel: {
     fontSize: 14,
