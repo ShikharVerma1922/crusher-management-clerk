@@ -47,4 +47,10 @@ export const apiServices = {
     );
     return response;
   },
+  customerList: async () => {
+    const { data, status } = await apiClient.get(
+      API_ENDPOINTS.CUSTOMER.GET_CUSTOMER_LIST,
+    );
+    return { data: data.data, status };
+  },
 };

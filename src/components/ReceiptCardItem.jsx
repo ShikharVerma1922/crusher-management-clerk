@@ -12,7 +12,6 @@ import BluetoothPrintButton from "./BluetoothPrintButton";
 
 export const TicketCard = ({ item, onVoidTrigger }) => {
   const isVoided = item.isVoid === true;
-
   return (
     <View style={[styles.cardContainer, isVoided && styles.voidedCard]}>
       {/* HEADER SECTION */}
@@ -69,12 +68,14 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
         </Text>
       </View>
 
-      <View style={styles.row}>
-        <Text style={styles.label}>Site:</Text>
-        <Text style={[styles.value, isVoided && styles.lineThrough]}>
-          {item.site || "N/A"}
-        </Text>
-      </View>
+      {item.site && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Site:</Text>
+          <Text style={[styles.value, isVoided && styles.lineThrough]}>
+            {item.site}
+          </Text>
+        </View>
+      )}
 
       <View style={styles.row}>
         <Text style={styles.label}>Material:</Text>
@@ -82,30 +83,82 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
           {item.materialName || "N/A"}
         </Text>
       </View>
-
       <View style={styles.row}>
-        <Text style={styles.label}>Quantity:</Text>
+        <Text style={styles.label}>Material Qty:</Text>
         <Text style={[styles.value, isVoided && styles.lineThrough]}>
-          {item.quantity || "0"}
+          {item.materialQuantity || "0"} ft³
         </Text>
       </View>
+      {item.materialRate > 0 && (
+        <View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Material Rate:</Text>
+            <Text style={[styles.value, isVoided && styles.lineThrough]}>
+              ₹{Number(item.materialRate).toLocaleString("en-IN")}/ft³
+            </Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Material Cost:</Text>
+            <Text style={[styles.value, isVoided && styles.lineThrough]}>
+              ₹
+              {Number(
+                Number(item.materialQuantity) * Number(item.materialRate),
+              ).toLocaleString("en-IN")}
+            </Text>
+          </View>
+          {item.hasRoyalty && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Royalty Booking:</Text>
+              <Text style={[styles.value, isVoided && styles.lineThrough]}>
+                ₹
+                {Number(
+                  Number(item.royaltyQuantity) * Number(item.royaltyRate),
+                ).toLocaleString("en-IN")}{" "}
+                ({item.royaltyQuantity} m³)
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <View style={styles.row}>
         <Text style={styles.label}>Payment Type:</Text>
         <Text style={[styles.value, isVoided && styles.lineThrough]}>
-          {item.paymentType || "CASH"}
+          {item.paymentMode || "CASH"}
         </Text>
       </View>
+      {item.paymentMode === "CASH" && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Amount Paid:</Text>
+          <Text
+            style={[
+              styles.summaryVal,
+              { fontWeight: "700", color: "#4338ca" },
+              isVoided && styles.lineThrough,
+            ]}
+          >
+            ₹{Number(item.amountPaid).toLocaleString("en-IN")}
+          </Text>
+        </View>
+      )}
+      {!item.materialRate && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Rate Status:</Text>
+          <Text style={[styles.value, isVoided && styles.lineThrough]}>
+            OPEN
+          </Text>
+        </View>
+      )}
 
       <View style={styles.divider} />
 
       {/* FINANCIAL DATA TOTAL */}
-      <View style={styles.row}>
+      {/* <View style={styles.row}>
         <Text style={styles.boldText}>Total Amount:</Text>
         <Text style={styles.boldText}>
-          ₹{isVoided ? "0.00" : Number(item.totalAmount || 0).toFixed(2)}
+          ₹{isVoided ? "0.00" : Number(item. || 0).toFixed(2)}
         </Text>
-      </View>
+      </View> */}
 
       {/* VOID METADATA REASON */}
       {isVoided && item.voidReason && (
