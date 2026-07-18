@@ -81,8 +81,8 @@ export default function BluetoothPrintButton({
     receipt += leftRight(
       `No. : #${data?.receiptNumber || "N/A"}`,
       `${
-        data?.createdAt
-          ? new Date(data.createdAt).toLocaleDateString("en-IN", {
+        data?.businessDate
+          ? new Date(data.businessDate).toLocaleDateString("en-IN", {
               day: "2-digit",
               month: "2-digit",
               year: "numeric",

@@ -65,7 +65,7 @@ export const validateFormStep = ({
 
   // Step 5 is just the IncludeRoyalty toggle screen (always valid)
 
-  if (currentStep === 6 && isRateSettled && hasRoyalty) {
+  if (currentStep === 6 && hasRoyalty) {
     if (Number(royaltyQuantity) <= 0)
       return {
         valid: false,
@@ -74,7 +74,7 @@ export const validateFormStep = ({
       };
   }
 
-  if (currentStep === 7 && isRateSettled && hasRoyalty) {
+  if (currentStep === 7 && hasRoyalty) {
     if (Number(royaltyRate) <= 0)
       return {
         valid: false,

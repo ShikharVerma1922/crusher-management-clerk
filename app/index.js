@@ -69,7 +69,7 @@ export default function WeighbridgeWizardScreen() {
   const [materialQuantity, setMaterialQuantity] = useState("");
   const [materialRate, setMaterialRate] = useState("");
   const [isRateSettled, setIsRateSettled] = useState(true);
-  const [paymentMode, setPaymentMode] = useState("CREDIT");
+  const [paymentMode, setPaymentMode] = useState("CASH");
   const [amountPaid, setAmountPaid] = useState("");
 
   // Royalty Control Modifiers
@@ -240,134 +240,6 @@ export default function WeighbridgeWizardScreen() {
   useEffect(() => {
     let isMounted = true;
 
-    // async function initializeRegistryMatrices() {
-    //   // 1. Activate loading feedback tracks immediately
-    //   setIsMaterialsLoading(true);
-    //   setIsCustomersLoading(true);
-
-    //   console.log(
-    //     "📡 Reloading material and customer registries from API on app launch...",
-    //   );
-
-    //   // --- ASYNC TASK 1: MATERIALS EXECUTION LOOP ---
-    //   const materialsPromise = apiServices
-    //     .materialList()
-    //     .then(async ({ data }) => {
-    //       if (Array.isArray(data) && data.length > 0) {
-    //         await AsyncStorage.setItem(
-    //           MATERIALS_CACHE_KEY,
-    //           JSON.stringify(data),
-    //         );
-    //         if (isMounted) {
-    //           setMaterials(data);
-    //           setSelectedMaterial(data[0].id || data[0].name);
-    //         }
-    //         console.log(
-    //           "💾 Material matrix refreshed and cached to local disk storage.",
-    //         );
-    //       } else {
-    //         throw new Error(
-    //           "Empty array payload returned from materials server.",
-    //         );
-    //       }
-    //     })
-    //     .catch(async (e) => {
-    //       console.log(
-    //         "⚠️ Materials API reload failed. Falling back to cached materials...",
-    //         e.message,
-    //       );
-    //       try {
-    //         const cachedStringData =
-    //           await AsyncStorage.getItem(MATERIALS_CACHE_KEY);
-    //         if (cachedStringData !== null) {
-    //           const parsedCacheArray = JSON.parse(cachedStringData);
-    //           if (
-    //             Array.isArray(parsedCacheArray) &&
-    //             parsedCacheArray.length > 0
-    //           ) {
-    //             if (isMounted) {
-    //               setMaterials(parsedCacheArray);
-    //               setSelectedMaterial(
-    //                 parsedCacheArray[0].id || parsedCacheArray[0].name,
-    //               );
-    //             }
-    //             console.log("✅ Recovered cached materials after API failure.");
-    //           }
-    //         } else if (isMounted) {
-    //           setMaterials([]);
-    //           setSelectedMaterial("");
-    //         }
-    //       } catch (cacheError) {
-    //         console.error(
-    //           "Critical storage corruption reading material cache:",
-    //           cacheError,
-    //         );
-    //       }
-    //     })
-    //     .finally(() => {
-    //       if (isMounted) setIsMaterialsLoading(false);
-    //     });
-
-    //   // --- ASYNC TASK 2: CUSTOMERS EXECUTION LOOP ---
-    //   const customersPromise = apiServices
-    //     .customerList()
-    //     .then(async ({ data }) => {
-    //       if (Array.isArray(data) && data.length > 0) {
-    //         await AsyncStorage.setItem(
-    //           CUSTOMERS_CACHE_KEY,
-    //           JSON.stringify(data),
-    //         );
-    //         if (isMounted) {
-    //           setCustomers(data);
-    //         }
-    //         console.log(
-    //           "💾 Customer profiles refreshed and cached to local disk storage.",
-    //         );
-    //       } else {
-    //         throw new Error(
-    //           "Empty array payload returned from customers server.",
-    //         );
-    //       }
-    //     })
-    //     .catch(async (e) => {
-    //       console.log(
-    //         "⚠️ Customer API reload failed. Falling back to cached customers...",
-    //         e.message,
-    //       );
-    //       try {
-    //         const cachedStringData =
-    //           await AsyncStorage.getItem(CUSTOMERS_CACHE_KEY);
-    //         if (cachedStringData !== null) {
-    //           const parsedCacheArray = JSON.parse(cachedStringData);
-    //           if (
-    //             Array.isArray(parsedCacheArray) &&
-    //             parsedCacheArray.length > 0
-    //           ) {
-    //             if (isMounted) {
-    //               setCustomers(parsedCacheArray);
-    //             }
-    //             console.log(
-    //               "✅ Recovered cached customer database records after API failure.",
-    //             );
-    //           }
-    //         } else if (isMounted) {
-    //           setCustomers([]);
-    //         }
-    //       } catch (cacheError) {
-    //         console.error(
-    //           "Critical storage corruption reading customer cache:",
-    //           cacheError,
-    //         );
-    //       }
-    //     })
-    //     .finally(() => {
-    //       if (isMounted) setIsCustomersLoading(false);
-    //     });
-
-    //   // Execute both network/disk requests concurrently in parallel background tracks
-    //   await Promise.allSettled([materialsPromise, customersPromise]);
-    // }
-
     initializeRegistryMatrices(isMounted);
 
     return () => {
@@ -375,7 +247,6 @@ export default function WeighbridgeWizardScreen() {
     };
   }, []);
 
-  // 1. Inside your handleNext navigation loop:
   const handleNext = () => {
     const validation = validateFormStep({
       currentStep,
@@ -391,34 +262,57 @@ export default function WeighbridgeWizardScreen() {
       paymentMode,
       amountPaid,
     });
+    recalculateGrandTotal(
+      materialQuantity,
+      materialRate,
+      royaltyQuantity,
+      royaltyQuantity,
+    );
 
     if (!validation.valid) {
       return Alert.alert(validation.title, validation.message);
     }
 
-    // --- SMART ROUTING SWITCHBOARD LOGIC ---
     if (currentStep === 3 && !isRateSettled) {
-      setCurrentStep(10); // Skip pricing details entirely if rate is open
+      setCurrentStep(5);
+    } else if (currentStep === 7 && !isRateSettled) {
+      setCurrentStep(10);
+    } else if (currentStep === 5 && !hasRoyalty && !isRateSettled) {
+      setCurrentStep(10);
     } else if (currentStep === 5 && !hasRoyalty) {
-      setCurrentStep(8); // Skip royalty inputs if toggle is turned off
+      setCurrentStep(8);
     } else if (currentStep === 8 && paymentMode === "CREDIT") {
-      setCurrentStep(10); // Skip the cash keypad display screen, jumping directly to the summary sheet
+      setCurrentStep(10);
     } else {
-      setCurrentStep((prev) => Math.min(10, prev + 1)); // Cap execution limits cleanly at index 10
+      setCurrentStep((prev) => Math.min(10, prev + 1));
     }
   };
 
   const handleBack = () => {
-    // --- SMART REVERSE ROUTING SWITCHBOARD LOGIC ---
-    if (currentStep === 10 && paymentMode === "CREDIT") {
-      setCurrentStep(8);
-    } else if (currentStep === 10 && !isRateSettled) {
-      setCurrentStep(3);
-    } else if (currentStep === 8 && isRateSettled && !hasRoyalty) {
+    if (currentStep === 10 && !hasRoyalty && !isRateSettled) {
       setCurrentStep(5);
+    } else if (currentStep === 10 && !isRateSettled) {
+      setCurrentStep(7);
+    } else if (currentStep === 10 && paymentMode === "CREDIT") {
+      setCurrentStep(8);
+    } else if (currentStep === 8 && !hasRoyalty) {
+      setCurrentStep(5);
+    } else if (currentStep === 5 && !isRateSettled) {
+      setCurrentStep(3);
     } else {
       setCurrentStep((prev) => Math.max(0, prev - 1));
     }
+  };
+
+  const calculateBusinessDate = (currentDate = new Date()) => {
+    const operationalDate = new Date(currentDate.getTime());
+    operationalDate.setHours(operationalDate.getHours() - 9);
+
+    const year = operationalDate.getFullYear();
+    const month = String(operationalDate.getMonth() + 1).padStart(2, "0");
+    const day = String(operationalDate.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
   };
 
   // 2. Inside your final commit trigger loop:
@@ -447,6 +341,7 @@ export default function WeighbridgeWizardScreen() {
       amountPaid: Number(amountPaid),
       paymentMode,
       createdAt: new Date().toISOString(),
+      businessDate: calculateBusinessDate(),
       rateStatus: isRateSettled ? "SETTLED" : "OPEN",
       hasRoyalty,
       synced: false,
@@ -583,7 +478,7 @@ export default function WeighbridgeWizardScreen() {
     setRoyaltyRate("");
 
     // 💳 Reset Payment Processing Matrix
-    setPaymentMode("CREDIT");
+    setPaymentMode("CASH");
     setAmountPaid("");
     setGrandTotal(0);
 
@@ -595,16 +490,18 @@ export default function WeighbridgeWizardScreen() {
     setIsRateSettled(value);
     if (!value) {
       setMaterialRate("0");
-      setHasRoyalty(false);
-      setRoyaltyQuantity("0");
-      setRoyaltyRate("0");
-      setGrandTotal(0);
+      // setHasRoyalty(false);
+      // setRoyaltyQuantity("");
+      // setRoyaltyRate("");
+      // setGrandTotal(0);
+
       setPaymentMode("CREDIT");
       setAmountPaid("0");
     } else {
       setMaterialRate("");
       setRoyaltyQuantity("");
       setRoyaltyRate("");
+      setPaymentMode("CASH");
     }
   };
 
@@ -680,23 +577,30 @@ export default function WeighbridgeWizardScreen() {
   const activeStepsList = [0, 1, 2, 3];
 
   if (!isRateSettled) {
-    activeStepsList.push(10); // Open-rate flow skips pricing/payment input and lands on summary
-  } else {
-    activeStepsList.push(4); // Material rate input
-    activeStepsList.push(5); // Royalty inclusion toggle
+    activeStepsList.push(5);
 
     if (hasRoyalty) {
-      activeStepsList.push(6); // Royalty quantity input
-      activeStepsList.push(7); // Royalty rate input
+      activeStepsList.push(6);
+      activeStepsList.push(7);
     }
 
-    activeStepsList.push(8); // Payment Mode
+    activeStepsList.push(10);
+  } else {
+    activeStepsList.push(4);
+    activeStepsList.push(5);
+
+    if (hasRoyalty) {
+      activeStepsList.push(6);
+      activeStepsList.push(7);
+    }
+
+    activeStepsList.push(8);
 
     if (paymentMode === "CASH") {
-      activeStepsList.push(9); // Cash Input
+      activeStepsList.push(9);
     }
 
-    activeStepsList.push(10); // Summary
+    activeStepsList.push(10);
   }
 
   // Calculate numbers derived directly from the generated active tracking array
@@ -774,9 +678,10 @@ export default function WeighbridgeWizardScreen() {
                   autoCorrect={false}
                   maxLength={10}
                   value={vehicleNumber}
-                  keyboardType={getVehicleKeyboardType(vehicleNumber)}
+                  // keyboardType={getVehicleKeyboardType(vehicleNumber)}
                   onChangeText={(text) =>
-                    setVehicleNumber(formatVehicleNumber(text))
+                    // setVehicleNumber(formatVehicleNumber(text))
+                    setVehicleNumber(text)
                   }
                   onSubmitEditing={() => handleNext()}
                   returnKeyType="next"
@@ -963,13 +868,16 @@ export default function WeighbridgeWizardScreen() {
                     <View>
                       <Switch
                         value={hasRoyalty}
-                        onValueChange={(value) => setHasRoyalty(value)}
+                        onValueChange={(value) => {
+                          setHasRoyalty(value);
+
+                          if (!value) {
+                            setRoyaltyQuantity("");
+                            setRoyaltyRate("");
+                          }
+                        }}
                         trackColor={{ false: "#cbd5e1", true: "#0284c7" }}
                         thumbColor="#ffffff"
-                        style={{
-                          transform: [{ scaleX: 1.3 }, { scaleY: 1.3 }],
-                          marginTop: 12,
-                        }}
                       />
                     </View>
                   </View>
@@ -1316,33 +1224,31 @@ export default function WeighbridgeWizardScreen() {
                           ).toLocaleString("en-IN")}
                         </Text>
                       </View>
-                      {hasRoyalty && (
-                        <View style={styles.summaryRow}>
-                          <Text style={styles.summaryLabel}>
-                            Royalty Booking:
-                          </Text>
-                          <Text style={styles.summaryVal}>
-                            ₹
-                            {Number(
-                              Number(royaltyQuantity) * Number(royaltyRate),
-                            ).toLocaleString("en-IN")}{" "}
-                            ({royaltyQuantity} m³)
-                          </Text>
-                        </View>
-                      )}
-                      <View style={styles.summaryRow}>
-                        <Text style={styles.summaryLabel}>Grand Total:</Text>
-                        <Text
-                          style={[
-                            styles.summaryVal,
-                            { fontWeight: "700", color: "#4338ca" },
-                          ]}
-                        >
-                          ₹{Number(grandTotal).toLocaleString("en-IN")}
-                        </Text>
-                      </View>
                     </>
                   )}
+                  {hasRoyalty && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Royalty Booking:</Text>
+                      <Text style={styles.summaryVal}>
+                        ₹
+                        {Number(
+                          Number(royaltyQuantity) * Number(royaltyRate),
+                        ).toLocaleString("en-IN")}{" "}
+                        ({royaltyQuantity} m³)
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Grand Total:</Text>
+                    <Text
+                      style={[
+                        styles.summaryVal,
+                        { fontWeight: "700", color: "#4338ca" },
+                      ]}
+                    >
+                      ₹{Number(grandTotal).toLocaleString("en-IN")}
+                    </Text>
+                  </View>
 
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Payment Track:</Text>
@@ -1427,8 +1333,8 @@ export default function WeighbridgeWizardScreen() {
                 </View>
                 <View style={styles.previewRow}>
                   <Text style={styles.previewValue}>
-                    {finalTicketRecord?.createdAt
-                      ? new Date(finalTicketRecord.createdAt).toLocaleString(
+                    {finalTicketRecord?.businessDate
+                      ? new Date(finalTicketRecord.businessDate).toLocaleString(
                           "en-IN",
                           {
                             day: "2-digit",

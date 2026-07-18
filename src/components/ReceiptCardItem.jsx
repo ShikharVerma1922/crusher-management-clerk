@@ -7,6 +7,7 @@ import {
   CloudCheck,
   Delete,
   Trash,
+  Dot,
 } from "lucide-react-native";
 import BluetoothPrintButton from "./BluetoothPrintButton";
 
@@ -47,9 +48,30 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
         )}
       </View>
 
-      <Text style={styles.subText}>
-        Date: {new Date(item.createdAt).toLocaleString("en-IN")}
-      </Text>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          marginTop: 2,
+        }}
+      >
+        <Text style={styles.subText}>
+          {new Date(item.businessDate).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
+        </Text>
+
+        <Dot size={14} color="#666666" />
+
+        <Text style={styles.subText}>
+          {new Date(item.createdAt).toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </Text>
+      </View>
 
       <View style={styles.divider} />
 
