@@ -2,6 +2,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { Text, View, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthProvider } from "../src/context/AuthContext";
 import { LedgerProvider, useLedger } from "../src/context/LedgerContext";
 import { PrinterProvider } from "../src/context/PrinterContext";
@@ -47,6 +48,7 @@ function GlobalHeaderTitleView({ screenTitle }) {
 
 // Internal Navigation Switcher Configuration
 function TabsNavigationDeck() {
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -54,12 +56,19 @@ function TabsNavigationDeck() {
           backgroundColor: "#ffffff",
           borderTopWidth: 1,
           borderTopColor: "#e2e8f0",
-          height: 60,
-          paddingBottom: 6,
-          paddingTop: 6,
+          height: 52 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 1),
+          paddingTop: 1,
         },
         tabBarActiveTintColor: "#0f172a", // Solid charcoal slate active color
         tabBarInactiveTintColor: "#94a3b8", // Muted text for non-focus items
+        tabBarLabelStyle: {
+          fontSize: 11,
+          marginBottom: 2,
+        },
+        tabBarIconStyle: {
+          marginTop: 2,
+        },
         headerStyle: {
           backgroundColor: "#0f172a", // Solid corporate charcoal navigation head bar
           // height: Platform.OS === "ios" ? 100 : 70,

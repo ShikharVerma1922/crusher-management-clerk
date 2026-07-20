@@ -9,6 +9,7 @@ import { apiServices } from "../services/apiServices.js";
 export const syncCounterFromDatabase = async () => {
   try {
     const serverData = await apiServices.latestReceiptNumber();
+    console.log("R.No. fetched");
     const latestR_Num = serverData.data || 1000;
 
     await AsyncStorage.setItem(
@@ -30,15 +31,28 @@ export const syncCounterFromDatabase = async () => {
 export const generateTicketIdentities = async () => {
   const systemUuid = Crypto.randomUUID();
 
-  let currentCounter = await AsyncStorage.getItem(
-    "@mandar_global_receipt_counter",
-  );
+  let currentCounter;
 
-  if (!currentCounter) {
+  // Prefer the server as the source of truth whenever it is reachable.
+  try {
     const recoveredServerIndex = await syncCounterFromDatabase();
-    currentCounter = recoveredServerIndex
-      ? recoveredServerIndex.toString()
-      : "1000";
+    if (recoveredServerIndex !== null) {
+      currentCounter = recoveredServerIndex.toString();
+    }
+  } catch {
+    // Ignore and fall back to local storage.
+  }
+
+  // Offline or server unavailable: continue from the locally cached counter.
+  if (!currentCounter) {
+    currentCounter = await AsyncStorage.getItem(
+      "@mandar_global_receipt_counter",
+    );
+  }
+
+  // First launch with no local cache and no server.
+  if (!currentCounter) {
+    currentCounter = "1000";
   }
 
   const nextCount = parseInt(currentCounter, 10) + 1;

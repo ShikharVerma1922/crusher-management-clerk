@@ -94,6 +94,8 @@ export const AuthProvider = ({ children }) => {
 
       await AsyncStorage.removeItem("@mandar_clerk_session");
       await AsyncStorage.removeItem("@mandar_active_shift_id");
+      await AsyncStorage.removeItem("@mandar_sync_ops_queue");
+
       setClerk(null);
       setShiftId(null);
     } catch (e) {

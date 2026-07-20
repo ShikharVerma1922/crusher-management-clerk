@@ -1111,7 +1111,9 @@ export default function WeighbridgeWizardScreen() {
             {/* ========================================================= */}
             {currentStep === 9 && paymentMode === "CASH" && (
               <View style={styles.stepWrapper}>
-                <Text style={styles.stepTitle}>Enter Cash Received</Text>
+                <Text style={{ ...styles.stepTitle, marginBottom: 8 }}>
+                  Enter Cash Received
+                </Text>
 
                 <View style={styles.numericValueCard}>
                   <Text style={styles.giantValueDisplay}>
@@ -1480,7 +1482,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: "#ffffff",
     justifyContent: "space-between",
-    paddingBottom: 10,
+    paddingBottom: 2,
   },
   stepWrapper: {
     flex: 1,
@@ -1632,7 +1634,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingTop: 2,
-    marginTop: 16,
+    // marginTop: 16,
   },
   backBtn: {
     display: "flex",
