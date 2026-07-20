@@ -266,7 +266,7 @@ export default function WeighbridgeWizardScreen() {
       materialQuantity,
       materialRate,
       royaltyQuantity,
-      royaltyQuantity,
+      royaltyRate,
     );
 
     if (!validation.valid) {
@@ -499,8 +499,8 @@ export default function WeighbridgeWizardScreen() {
       setAmountPaid("0");
     } else {
       setMaterialRate("");
-      setRoyaltyQuantity("");
-      setRoyaltyRate("");
+      // setRoyaltyQuantity("");
+      // setRoyaltyRate("");
       setPaymentMode("CASH");
     }
   };
