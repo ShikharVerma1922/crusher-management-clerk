@@ -82,6 +82,8 @@ export default function WeighbridgeWizardScreen() {
 
   const [finalTicketRecord, setFinalTicketRecord] = useState({});
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const MATERIALS_CACHE_KEY = "@mandar_crusher_materials_cache";
   const CUSTOMERS_CACHE_KEY = "@mandar_crusher_customers_cache";
 
@@ -315,48 +317,55 @@ export default function WeighbridgeWizardScreen() {
     return `${year}-${month}-${day}`;
   };
 
-  // 2. Inside your final commit trigger loop:
   const handleFinalCommit = async () => {
-    const matObj = materials.find(
-      (m) => m.id === selectedMaterial || m.name === selectedMaterial,
-    );
+    if (isSaving) return;
 
-    const { id, receiptNumber } = await generateTicketIdentities();
-    console.log("Receipt no,: ", receiptNumber, id);
+    setIsSaving(true);
 
-    const finalTicket = {
-      id,
-      shiftId,
-      clerkId: clerk?.id,
-      vehicleNumber: vehicleNumber.trim().toUpperCase(),
-      site,
-      receiptNumber: String(receiptNumber),
-      customerName: customerName.trim(),
-      materialName: matObj?.name || selectedMaterial,
-      materialId: selectedMaterial,
-      materialQuantity: Number(materialQuantity),
-      materialRate: Number(materialRate),
-      royaltyQuantity: Number(royaltyQuantity),
-      royaltyRate: Number(royaltyRate),
-      amountPaid: Number(amountPaid),
-      paymentMode,
-      createdAt: new Date().toISOString(),
-      businessDate: calculateBusinessDate(),
-      rateStatus: isRateSettled ? "SETTLED" : "OPEN",
-      hasRoyalty,
-      synced: false,
-      isVoid: false,
-      voidReason: null,
-    };
-
-    setFinalTicketRecord(finalTicket);
     try {
+      const matObj = materials.find(
+        (m) => m.id === selectedMaterial || m.name === selectedMaterial,
+      );
+
+      const { id, receiptNumber } = await generateTicketIdentities();
+
+      console.log("Receipt no.:", receiptNumber, id);
+
+      const finalTicket = {
+        id,
+        shiftId,
+        clerkId: clerk?.id,
+        vehicleNumber: vehicleNumber.trim().toUpperCase(),
+        site,
+        receiptNumber: String(receiptNumber),
+        customerName: customerName.trim(),
+        materialName: matObj?.name || selectedMaterial,
+        materialId: selectedMaterial,
+        materialQuantity: Number(materialQuantity),
+        materialRate: Number(materialRate),
+        royaltyQuantity: Number(royaltyQuantity),
+        royaltyRate: Number(royaltyRate),
+        amountPaid: Number(amountPaid),
+        paymentMode,
+        createdAt: new Date().toISOString(),
+        businessDate: calculateBusinessDate(),
+        rateStatus: isRateSettled ? "SETTLED" : "OPEN",
+        hasRoyalty,
+        synced: false,
+        isVoid: false,
+        voidReason: null,
+      };
+
+      setFinalTicketRecord(finalTicket);
+
       await appendNewTicket(finalTicket);
-      // Alert.alert("Success ✅", `Ticket ${receiptNumber} saved successfully!`);
+
       setPrintModalVisible(true);
       setPrintStep("customer");
     } catch (e) {
       Alert.alert("Error ❌", "Could not write transaction log.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -672,13 +681,14 @@ export default function WeighbridgeWizardScreen() {
                 <TextInput
                   ref={vehicleInputRef}
                   style={styles.formInput}
-                  placeholder="e.g. MH14EU9999"
+                  placeholder="e.g. MP04AB9999"
                   placeholderTextColor="#94a3b8"
                   autoCapitalize="characters"
                   autoCorrect={false}
                   maxLength={10}
                   value={vehicleNumber}
                   // keyboardType={getVehicleKeyboardType(vehicleNumber)}
+                  keyboardType="numeric"
                   onChangeText={(text) =>
                     // setVehicleNumber(formatVehicleNumber(text))
                     setVehicleNumber(text)
@@ -1281,7 +1291,11 @@ export default function WeighbridgeWizardScreen() {
         {/* Bottom Navigation Control Ribbon */}
         <View style={styles.actionNavRow}>
           {currentStep > 0 ? (
-            <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={handleBack}
+              disabled={isSaving}
+            >
               <ArrowBigLeft color="#475569" size={20} />
               <Text style={styles.backBtnText}> Back</Text>
             </TouchableOpacity>
@@ -1296,11 +1310,21 @@ export default function WeighbridgeWizardScreen() {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={styles.commitBtn}
+              style={[styles.commitBtn, isSaving && { opacity: 0.6 }]}
               onPress={handleFinalCommit}
+              disabled={isSaving}
             >
-              <SaveCheck color={"#ffffff"} size={20} />
-              <Text style={styles.commitBtnText}>Save</Text>
+              {isSaving ? (
+                <>
+                  <ActivityIndicator color="#fff" size="small" />
+                  <Text style={styles.commitBtnText}>Saving...</Text>
+                </>
+              ) : (
+                <>
+                  <SaveCheck color="#ffffff" size={20} />
+                  <Text style={styles.commitBtnText}>Save</Text>
+                </>
+              )}
             </TouchableOpacity>
           )}
         </View>

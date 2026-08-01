@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 
 export default function CustomerSelectionField({
@@ -89,8 +90,13 @@ export default function CustomerSelectionField({
             onPress={onRefreshCustomers}
             style={styles.refreshButtonInline}
             activeOpacity={0.4}
+            disabled={isCustomersLoading}
           >
-            <RefreshCcw size={20} color={"gray"} />
+            {isCustomersLoading ? (
+              <ActivityIndicator size={17} color="gray" />
+            ) : (
+              <RefreshCcw size={17} color={"gray"} />
+            )}
           </TouchableOpacity>
         </View>
 
