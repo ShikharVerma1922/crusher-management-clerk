@@ -93,9 +93,9 @@ export default function CustomerSelectionField({
             disabled={isCustomersLoading}
           >
             {isCustomersLoading ? (
-              <ActivityIndicator size={17} color="gray" />
+              <ActivityIndicator size={20} color="gray" />
             ) : (
-              <RefreshCcw size={17} color={"gray"} />
+              <RefreshCcw size={20} color={"gray"} />
             )}
           </TouchableOpacity>
         </View>

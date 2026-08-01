@@ -24,13 +24,17 @@ import {
 } from "lucide-react-native";
 
 export default function LedgerHistoryScreen() {
-  const { transactions, voidTransactionTicket } = useLedger();
+  const { transactions, voidTransactionTicket, isOnline } = useLedger();
 
   const { logout, clerk } = useAuth();
 
   // Modal Control States
   const [reasonModalVisible, setReasonModalVisible] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
+
+  const pendingSyncCount = transactions.filter(
+    (transaction) => !transaction.synced && !transaction.isVoid,
+  ).length;
 
   // 📝 Standard Auditable Void Reasons for Weighbridge Operations
   const VOID_REASONS = [
@@ -85,6 +89,15 @@ export default function LedgerHistoryScreen() {
 
   return (
     <View style={styles.screenContainer}>
+      {/* Offline sync banner */}
+      {pendingSyncCount > 0 && (
+        <View style={styles.offlineSyncBanner}>
+          <Text style={styles.offlineSyncText}>
+            {pendingSyncCount} {pendingSyncCount === 1 ? "ticket" : "tickets"}{" "}
+            pending sync
+          </Text>
+        </View>
+      )}
       <View style={styles.adminControlHeaderBar}>
         <View style={styles.headerActionsRow}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
@@ -185,6 +198,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 32,
+  },
+
+  offlineSyncBanner: {
+    backgroundColor: "#fff7ed",
+    borderBottomWidth: 1,
+    borderBottomColor: "#fed7aa",
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
+  offlineSyncText: {
+    color: "#c2410c",
+    fontSize: 13,
+    fontWeight: "700",
   },
 
   // 🏛️ ADMIN CONTROL MASTER HEADER

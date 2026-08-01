@@ -67,7 +67,7 @@ export default function LoginScreen() {
         style={styles.inputField}
         placeholder="Password"
         placeholderTextColor="#64748b"
-        secureTextEntry={true} // Obscures character entries on screen track
+        secureTextEntry={true}
         value={passwordInput}
         onChangeText={setPasswordInput}
         autoCapitalize="none"

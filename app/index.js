@@ -688,7 +688,6 @@ export default function WeighbridgeWizardScreen() {
                   maxLength={10}
                   value={vehicleNumber}
                   // keyboardType={getVehicleKeyboardType(vehicleNumber)}
-                  keyboardType="numeric"
                   onChangeText={(text) =>
                     // setVehicleNumber(formatVehicleNumber(text))
                     setVehicleNumber(text)
