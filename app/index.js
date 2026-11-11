@@ -50,6 +50,7 @@ export default function WeighbridgeWizardScreen() {
   // Form Input Storage States
   const [vehicleNumber, setVehicleNumber] = useState("");
   const [customerName, setCustomerName] = useState("");
+  const [slipNumber, setSlipNumber] = useState("");
   const [site, setSite] = useState("");
   const [materials, setMaterials] = useState([]);
   const [selectedMaterial, setSelectedMaterial] = useState("");
@@ -336,6 +337,7 @@ export default function WeighbridgeWizardScreen() {
         shiftId,
         clerkId: clerk?.id,
         vehicleNumber: vehicleNumber.trim().toUpperCase(),
+        slipNumber: slipNumber.trim(),
         site,
         receiptNumber: String(receiptNumber),
         customerName: customerName.trim(),
@@ -474,6 +476,7 @@ export default function WeighbridgeWizardScreen() {
     setVehicleNumber("");
     setCustomerName("");
     setCustomerSearchQuery("");
+    setSlipNumber("");
     setSite("");
 
     // 💰 Reset Scale & Financial Input Parameters (Clean String Resets)
@@ -670,7 +673,6 @@ export default function WeighbridgeWizardScreen() {
                   onRefreshCustomers={initializeRegistryMatrices}
                   onAddNewPress={() => setNewCustomerModalVisible(true)}
                   onCustomerSelected={(item) => {
-                    // Automatically snap focus to the next entry field when selected
                     vehicleInputRef.current?.focus();
                   }}
                 />
@@ -691,6 +693,21 @@ export default function WeighbridgeWizardScreen() {
                   onChangeText={(text) =>
                     // setVehicleNumber(formatVehicleNumber(text))
                     setVehicleNumber(text)
+                  }
+                  onSubmitEditing={() => handleNext()}
+                  returnKeyType="next"
+                />
+                 <Text style={[styles.fieldLabel, { marginTop: 16 }]}>
+                  Slip Number
+                </Text>
+                <TextInput
+                  style={styles.formInput}
+                  placeholderTextColor="#94a3b8"
+                  autoCorrect={false}
+                  maxLength={10}
+                  value={slipNumber}
+                  onChangeText={(text) =>
+                    setSlipNumber(text)
                   }
                   onSubmitEditing={() => handleNext()}
                   returnKeyType="next"
@@ -1176,6 +1193,12 @@ export default function WeighbridgeWizardScreen() {
                       {vehicleNumber.toUpperCase()}
                     </Text>
                   </View>
+                  {slipNumber && (
+                    <View style={styles.summaryRow}>
+                      <Text style={styles.summaryLabel}>Slip Number:</Text>
+                      <Text style={styles.summaryVal}>{slipNumber || "N/A"}</Text>
+                    </View>
+                  )}
                   {site && (
                     <View style={styles.summaryRow}>
                       <Text style={styles.summaryLabel}>Site:</Text>

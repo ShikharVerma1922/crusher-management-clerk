@@ -76,6 +76,14 @@ export const TicketCard = ({ item, onVoidTrigger }) => {
       <View style={styles.divider} />
 
       {/* CORE DETAILS DATA GRID */}
+      {item.slipNumber && (
+        <View style={styles.row}>
+          <Text style={styles.label}>Slip No:</Text>
+          <Text style={[styles.value, isVoided && styles.lineThrough]}>
+            {item.slipNumber}
+          </Text>
+        </View>
+      )}
       <View style={styles.row}>
         <Text style={styles.label}>Customer Name:</Text>
         <Text style={[styles.value, isVoided && styles.lineThrough]}>
