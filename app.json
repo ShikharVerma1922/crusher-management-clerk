@@ -40,9 +40,13 @@
         {
           "peripheralUsageDescription": "Allow MandarClerkApp to connect to thermal ticket printers via Bluetooth.",
           "alwaysUsageDescription": "Allow MandarClerkApp to discover logistics hardware components.",
-          "protocols": ["com.datecs.linea.pro", "com.bxl.protocol"]
+          "protocols": [
+            "com.datecs.linea.pro",
+            "com.bxl.protocol"
+          ]
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "router": {},

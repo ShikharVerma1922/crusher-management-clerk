@@ -39,6 +39,7 @@ import {
   getVehicleKeyboardType,
 } from "../src/utils/weighBridgeHelpers.js";
 import CustomerSelectionField from "../src/components/CustomerSelectionField.jsx";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 export default function WeighbridgeWizardScreen() {
   const { clerk, shiftId } = useAuth();
@@ -51,6 +52,18 @@ export default function WeighbridgeWizardScreen() {
   const [vehicleNumber, setVehicleNumber] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [slipNumber, setSlipNumber] = useState("");
+  const [businessDate, setBusinessDate] = useState(() => {
+  const operationalDate = new Date();
+  operationalDate.setHours(operationalDate.getHours() - 9);
+
+  const year = operationalDate.getFullYear();
+  const month = String(operationalDate.getMonth() + 1).padStart(2, "0");
+  const day = String(operationalDate.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+});
+
+const [showBusinessDatePicker, setShowBusinessDatePicker] = useState(false);
   const [site, setSite] = useState("");
   const [materials, setMaterials] = useState([]);
   const [selectedMaterial, setSelectedMaterial] = useState("");
@@ -318,8 +331,48 @@ export default function WeighbridgeWizardScreen() {
     return `${year}-${month}-${day}`;
   };
 
+  const parseBusinessDate = (dateString) => {
+  const [year, month, day] = dateString.split("-").map(Number);
+
+  return new Date(year, month - 1, day);
+};
+
   const handleFinalCommit = async () => {
     if (isSaving) return;
+
+    // Validate Business Date
+if (!/^\d{4}-\d{2}-\d{2}$/.test(businessDate)) {
+  Alert.alert(
+    "Invalid Business Date",
+    "Please select a valid business date."
+  );
+  return;
+}
+
+const parsedBusinessDate = parseBusinessDate(businessDate);
+
+const [businessYear, businessMonth, businessDay] =
+  businessDate.split("-").map(Number);
+
+if (
+  parsedBusinessDate.getFullYear() !== businessYear ||
+  parsedBusinessDate.getMonth() !== businessMonth - 1 ||
+  parsedBusinessDate.getDate() !== businessDay
+) {
+  Alert.alert(
+    "Invalid Business Date",
+    "Please select a valid calendar date."
+  );
+  return;
+}
+
+if (businessDate > calculateBusinessDate()) {
+  Alert.alert(
+    "Invalid Business Date",
+    "Future business dates are not allowed."
+  );
+  return;
+}
 
     setIsSaving(true);
 
@@ -350,13 +403,15 @@ export default function WeighbridgeWizardScreen() {
         amountPaid: Number(amountPaid),
         paymentMode,
         createdAt: new Date().toISOString(),
-        businessDate: calculateBusinessDate(),
+businessDate,
+isBackdated: businessDate !== calculateBusinessDate(),
         rateStatus: isRateSettled ? "SETTLED" : "OPEN",
         hasRoyalty,
         synced: false,
         isVoid: false,
         voidReason: null,
       };
+
 
       setFinalTicketRecord(finalTicket);
 
@@ -477,6 +532,8 @@ export default function WeighbridgeWizardScreen() {
     setCustomerName("");
     setCustomerSearchQuery("");
     setSlipNumber("");
+    setBusinessDate(calculateBusinessDate());
+setShowBusinessDatePicker(false);
     setSite("");
 
     // 💰 Reset Scale & Financial Input Parameters (Clean String Resets)
@@ -652,6 +709,7 @@ export default function WeighbridgeWizardScreen() {
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={{
             flexGrow: 1,
             justifyContent: "space-between",
@@ -697,21 +755,62 @@ export default function WeighbridgeWizardScreen() {
                   onSubmitEditing={() => handleNext()}
                   returnKeyType="next"
                 />
-                 <Text style={[styles.fieldLabel, { marginTop: 16 }]}>
-                  Slip Number
-                </Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholderTextColor="#94a3b8"
-                  autoCorrect={false}
-                  maxLength={10}
-                  value={slipNumber}
-                  onChangeText={(text) =>
-                    setSlipNumber(text)
-                  }
-                  onSubmitEditing={() => handleNext()}
-                  returnKeyType="next"
-                />
+ <View style={styles.horizontalTwoColRow}>
+  {/* Slip Number */}
+  <View style={styles.horizontalCol}>
+    <Text style={[styles.fieldLabel, { marginTop: 16 }]}>
+      Slip Number
+    </Text>
+
+    <TextInput
+      style={styles.formInput}
+      placeholderTextColor="#94a3b8"
+      autoCorrect={false}
+      maxLength={10}
+      value={slipNumber}
+      onChangeText={(text) => setSlipNumber(text)}
+      onSubmitEditing={() => handleNext()}
+      returnKeyType="next"
+    />
+  </View>
+
+  {/* Business Date */}
+  <View style={styles.horizontalCol}>
+    <Text style={[styles.fieldLabel, { marginTop: 16 }]}>
+      Business Date
+    </Text>
+
+    <TouchableOpacity
+      style={[styles.formInput, { justifyContent: "center" }]}
+      activeOpacity={0.7}
+      onPress={() => setShowBusinessDatePicker(true)}
+    >
+      <Text style={{ color: "#0f172a", fontSize: 20, fontWeight: "bold" }}>
+        {businessDate}
+      </Text>
+    </TouchableOpacity>
+
+    {showBusinessDatePicker && (
+      <DateTimePicker
+        value={parseBusinessDate(businessDate)}
+        mode="date"
+        display="default"
+        maximumDate={parseBusinessDate(calculateBusinessDate())}
+        onChange={(event, selectedDate) => {
+          setShowBusinessDatePicker(false);
+
+          if (event.type === "set" && selectedDate) {
+            const year = selectedDate.getFullYear();
+            const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+            const day = String(selectedDate.getDate()).padStart(2, "0");
+
+            setBusinessDate(`${year}-${month}-${day}`);
+          }
+        }}
+      />
+    )}
+  </View>
+</View>
               </View>
             )}
 
@@ -2018,6 +2117,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontStyle: "italic",
   },
+  horizontalTwoColRow: {
+  flexDirection: "row",
+  gap: 16,
+  width: "100%",
+},
+
+horizontalCol: {
+  flex: 1,
+  minWidth: 0,
+},
 });
 
 const pickerStyles = {
